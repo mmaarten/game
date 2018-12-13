@@ -1,0 +1,18 @@
+html, body
+{
+	margin: 0;
+	height: 100%;
+}
+
+.game
+{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: black;
+}
+
+.game canvas
+{
+	background-color: white;
+}

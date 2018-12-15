@@ -1,9 +1,6 @@
 
 window.Game = {};
 
-/**
- * Main
- */
 (function()
 {
 	Game.init = function()
@@ -20,26 +17,31 @@ window.Game = {};
 
 		this.events     = new Game.EventManager();
 		this.scenes     = new Game.SceneManager();
-		this.keyPressed = null;
 		this.interval   = null;
+		this.keyPressed = null;
 
-		this.canvas        = document.createElement( 'canvas' );
-		this.canvas.width  = 32 * 20;
-		this.canvas.height = 32 * 15; 
+		this.canvas = document.createElement( 'canvas' );
+		this.canvas.width  = 32 * 18;
+		this.canvas.height = 32 * 15;
 
-		document.dispatchEvent( new CustomEvent( 'Game.init' ) );
+		document.dispatchEvent( new CustomEvent( 'gameInit' ) );
 	};
 
 	Game.update = function()
 	{
+		// Update current scene
+		if ( this.scenes.currentScene ) 
+		{
+			this.scenes.currentScene.update();
+		}
+
+		// Notify
 		this.events.dispatchEvent( 'gameUpdate' );
 	};
 
 	Game.start = function()
-	{
-		/**
-		 * Track pressed key
-		 */
+	{	
+		// track key pressed
 
 		document.addEventListener( 'keydown', function( event )
 		{
@@ -55,13 +57,32 @@ window.Game = {};
 		this.interval = setInterval( function()
 		{
 			Game.update();
+
 		}, 1000 / this.fps );
 
+		// Notify
 		this.events.dispatchEvent( 'gameStart' );
 
-		//
+		// Add canvas
 		this.elem.classList.add( 'game' );
 		this.elem.appendChild( this.canvas );
+	};
+
+})();
+
+(function()
+{
+	function getDistance( x1, y1, x2, y2 )
+	{
+		var a = x1 - x2;
+		var b = y1 - y2;
+
+		return Math.sqrt( a * a + b * b );
+	}
+
+	Game.util = 
+	{
+		getDistance : getDistance,
 	};
 
 })();
@@ -77,11 +98,11 @@ window.Game = {};
 		this.right  = x + width;
 		this.top    = y;
 		this.bottom = y + height;
-	};
+	}
 
 	Rectangle.prototype.intersects = function( r ) 
 	{
-		 return !( r.left > this.right || 
+		return ! ( r.left > this.right || 
            r.right < this.left || 
            r.top > this.bottom ||
            r.bottom < this.top );
@@ -99,7 +120,7 @@ window.Game = {};
 	function EventManager()
 	{
 		this.listeners = {};
-	};
+	}
 
 	EventManager.prototype.addEventListener = function( type, callback ) 
 	{
@@ -139,20 +160,17 @@ window.Game = {};
 	{
 		this.scenes = {};
 		this.currentScene = null;
+	}
 
-		var _this = this;
-
-		Game.events.addEventListener( 'gameUpdate', function()
-		{
-			_this.update();
-		});
-	};
-
-	SceneManager.prototype.registerScene = function( className ) 
+	SceneManager.prototype.addScene = function( id, options ) 
 	{
-		var scene = new className();
+		var scene = new Game.Scene( id );
+
+		Object.assign( scene, options );
 
 		this.scenes[ scene.id ] = scene;
+
+		Game.events.dispatchEvent( 'sceneAdded', [ scene ] );
 	};
 
 	SceneManager.prototype.setCurrentScene = function( id ) 
@@ -168,14 +186,6 @@ window.Game = {};
 		this.currentScene.init();
 	};
 
-	SceneManager.prototype.update = function() 
-	{
-		if ( this.currentScene ) 
-		{
-			this.currentScene.update();
-		}
-	};
-
 	Game.SceneManager = SceneManager;
 
 })();
@@ -188,7 +198,7 @@ window.Game = {};
 	function Scene( id )
 	{
 		this.id = id;
-	};
+	}
 
 	Scene.prototype.init = function() 
 	{
@@ -214,12 +224,17 @@ window.Game = {};
  */
 (function()
 {
+	/**
+	 * Constructor
+	 *
+	 * @param object options
+	 */
 	function Map( options )
 	{
 		var defaults = 
 		{
-			width : 10,
-			height : 10,
+			width    : 0,
+			height   : 0,
 			tileSize : 32,
 			tileData : [],
 			tileProperties : {},
@@ -233,49 +248,108 @@ window.Game = {};
 		this.tileData       = options.tileData;
 		this.tileProperties = options.tileProperties;
 		this.tiles          = {};
-		this.characters     = {};
+		this.characters     = [];
 
 		// Create tiles
-		for ( var index in this.tileData )
+		for (var index = 0; index < this.tileData.length; index++ ) 
 		{
-			this.addTile( index, this.tileData[ index ] );
+			this.setTile( index, this.tileData[ index ] );
 		}
-	};
+	}
 
-	Map.prototype.render = function() 
+	/**
+	 * Set Tile
+	 *
+	 * Add tile to map.
+	 *
+	 * @param integer index
+	 * @param mixed type
+	 */
+	Map.prototype.setTile = function( index, type ) 
 	{
-		// tiles
-		for ( var i in this.tiles )
-		{
-			this.tiles[i].render();
-		}
-
-		// characters
-		for ( var i in this.characters )
-		{
-			this.characters[i].render();
-		}
-	};
-
-	Map.prototype.addTile = function( index, type ) 
-	{
-		var loc     = this.getTileLocation( index );
-		var options = this.tileProperties[ type ];
+		var loc = this.getTileLocation( index );
 
 		var tile = new Game.Tile();
 
-		tile.x       = loc.x * this.tileSize;
-		tile.y       = loc.y * this.tileSize;
-		tile.width   = this.tileSize;
-		tile.height  = this.tileSize;
-		tile.collide = options.collide;
-		tile.type    = type;
+		Object.assign( tile, this.tileProperties[ type ] );
 
-		this.tiles[ index ] = tile;
+		tile.x      = loc.x * this.tileSize;
+		tile.y      = loc.y * this.tileSize;
+		tile.width  = this.tileSize;
+		tile.height = this.tileSize;
+		tile.type   = type;
+		tile.index  = index;
 
-		Game.events.dispatchEvent( 'tileAdded', [ tile ] );
+		this.tiles[ tile.index ] = tile;
+
+		Game.events.dispatchEvent( 'tileSet', [ tile ] );
 	};
 
+	/**
+	 * Get Tile
+	 *
+	 * Get tile instance by index.
+	 *
+	 * @param integer index
+	 * 
+	 * @return Game.Tile
+	 */
+	Map.prototype.getTile = function( index ) 
+	{
+		return this.tiles[ index ];
+	};
+
+	/**
+	 * Get Tile At
+	 *
+	 * Get tile instance by location.
+	 *
+	 * @param number x Location in pixels or column index.
+	 * @param number y Location in pixels or row index.
+	 * @param boolean translate Wheter to convert x and y arguments 
+	 *                          to row and column indexes.
+	 * 
+	 * @return Game.Tile
+	 */
+	Map.prototype.getTileAt = function( x, y, translate ) 
+	{
+		var index = this.getTileIndex( x, y, translate );
+
+		return this.getTile( index );
+	};
+
+	/**
+	 * Get Tile Index
+	 *
+	 * Get tile index by location.
+	 *
+	 * @param number x Location in pixels or column index.
+	 * @param number y Location in pixels or row index.
+	 * @param boolean translate Wheter to convert x and y arguments 
+	 *                          to row and column indexes.
+	 * 
+	 * @return integer
+	 */
+	Map.prototype.getTileIndex = function( x, y, translate ) 
+	{
+		if ( translate ) 
+		{
+			x = Math.floor( x / this.tileSize );
+			y = Math.floor( y / this.tileSize );
+		}
+
+		return this.width * y + x;
+	};
+
+	/**
+	 * Get Tile Location
+	 *
+	 * Get tile location by index.
+	 *
+	 * @param integer index
+	 * 
+	 * @return Object
+	 */
 	Map.prototype.getTileLocation = function( index ) 
 	{
 		var x = index % this.width;
@@ -284,42 +358,203 @@ window.Game = {};
 		return { x : x, y : y };
 	};
 
-	Map.prototype.getTile = function( index ) 
+	/**
+	 * Get Tile neighbors
+	 *
+	 * Returns a list of tile neighbors indexes.
+	 * 'Walls' are excluded.
+	 *
+	 * @param integer index
+	 * 
+	 * @return Array
+	 */
+	Map.prototype.getTileNeighbors = function( index ) 
 	{
-		return this.tiles[ index ];
+		var loc = this.getTileLocation( index );
+		
+		var left   = this.getTileAt( loc.x - 1, loc.y + 0 );
+		var right  = this.getTileAt( loc.x + 1, loc.y + 0 );
+		var top    = this.getTileAt( loc.x + 0, loc.y - 1 );
+		var bottom = this.getTileAt( loc.x + 0, loc.y + 1 );
+		
+		var neighbors = [];
+
+		if ( left && ! left.collide ) 
+		{
+			neighbors.push( left.index );
+		}
+
+		if ( right && ! right.collide ) 
+		{
+			neighbors.push( right.index );
+		}
+
+		if ( top && ! top.collide ) 
+		{
+			neighbors.push( top.index );
+		}
+
+		if ( bottom && ! bottom.collide ) 
+		{
+			neighbors.push( bottom.index );
+		}
+
+		return neighbors;
 	};
 
-	Map.prototype.getTileAt = function( x, y ) 
+	/**
+	 * Get Distance Field
+	 *
+	 * @param integer tileIndex
+	 * 
+	 * @return Array
+	 */
+	Map.prototype.getDistanceField = function( tileIndex )
 	{
-		var index = this.getTileIndex( x, y );
+		var frontier = [];
+		var visited = {};
 
-		return this.tiles[ index ];
+		frontier.push( tileIndex );
+		visited[ tileIndex ] = 0;
+
+		while ( frontier.length )
+		{
+			var current   = frontier.shift();
+			var neighbors = this.getTileNeighbors( current );
+
+			for ( var i in neighbors )
+			{
+				var next = neighbors[ i ];
+
+				if ( visited[ next ] === undefined ) 
+				{
+					frontier.push( next );
+
+					visited[ next ] = 1 + visited[ current ];
+				}
+			}
+		}
+
+		return visited;
 	};
 
-	Map.prototype.getTileIndex = function( x, y ) 
+	/**
+	 * Get Path
+	 *
+	 * Returns an array of tile indexes representing the path to walk.
+	 *
+	 * @param integer a Origin tile index
+	 * @param integer b Destination tile index
+	 * 
+	 * @return Array
+	 */
+	Map.prototype.getPath = function( a, b )
 	{
-		return this.width * y + x;
-	};
+		var field = this.getDistanceField( b );
 
-	Map.prototype.addCharacter = function( character, x, y ) 
+		// Check if a can reach b
+
+		if ( ! field[ a ] || ! field[ b ] ) 
+		{
+			return [];
+		}
+
+		var path = [];
+
+		// 
+
+		var frontier = [];
+		frontier.push( a );
+
+		var visited = {};
+		visited[ a ] = true;
+
+		path.push( a );
+
+		while ( frontier.length )
+		{
+			var current = frontier.shift();
+
+			// Get neighbor with lowest cost
+
+			var tile, cost, next;
+
+			var neighbors = this.getTileNeighbors( current );
+
+			for ( var i in neighbors )
+			{
+				var neighbor = neighbors[ i ];
+
+				if ( cost === undefined || cost > field[ neighbor ] ) 
+				{
+					cost = field[ neighbor ];
+					next = neighbor;
+				}
+			}
+
+			if ( next && ! visited[ next ] ) 
+			{
+				frontier.push( next );
+				path.push( next );
+
+				visited[ next ] = true;
+			}
+		}
+
+		// Add destination
+
+		if ( path.length ) 
+		{
+			path.push( b );
+		}
+
+		return path;
+	}
+
+	/**
+	 * Add character
+	 *
+	 * @param Game.Character
+	 * @param integer x
+	 * @param integer y
+	 */
+	Map.prototype.addCharacter = function( character, x, y )
 	{
+		// Center character on tile
 		var cx = x * this.tileSize + ( ( this.tileSize - character.width ) / 2 );
 		var cy = y * this.tileSize + ( ( this.tileSize - character.height ) / 2 );
 
 		character.setLocation( cx, cy );
 
-		this.characters[ character.id ] = character;
+		// Add character
+		this.characters.push( character );
 
-		Game.events.dispatchEvent( 'characterAdded', [ character ] );
+		// Notify
+		Game.events.addEventListener( 'characterAdded', [ character ] );
+	};
+
+	/**
+	 * Render
+	 */
+	Map.prototype.render = function() 
+	{
+		// tiles
+		for ( var i in this.tiles )
+		{
+			this.tiles[ i ].render();
+		}
+
+		// characters
+		for ( var i in this.characters )
+		{
+			this.characters[ i ].render();
+		}
 	};
 
 	Game.Map = Map;
 
 })();
 
-/**
- * Tile
- */
 (function()
 {
 	function Tile()
@@ -328,16 +563,17 @@ window.Game = {};
 		this.y;
 		this.width;
 		this.height;
-		this.type    = 0;
+		this.type;
+		this.index;
 		this.collide = false;
-	};
+	}
 
 	Tile.prototype.render = function() 
 	{
 		var sprite = 
 		{
-			1 : '#F7F7FF',
-			2 : '#232528',
+			1 : 'white',
+			2 : 'grey',
 		};
 
 		var fill = sprite[ this.type ];
@@ -354,192 +590,170 @@ window.Game = {};
 
 })();
 
-/**
- * Character
- */
 (function()
 {
-	function Character( id, map )
+	function Character( map )
 	{
-		this.id  = id;
-		this.map = map;
+		this.map         = map;
 		this.x;
 		this.y;
-		this.width  = 24;
-		this.height = 24;
-		this.dirX = 0;
-		this.dirY = 0;
+		this.width       = 24;
+		this.height      = 24;
+		this.dirX        = 0;
+		this.dirY        = 0;
 		this.movingSpeed = 8;
-	};
+		this.isMoving    = false;
+		this.path        = [];
+		this.pathIndex   = -1;
+	}
 
 	Character.prototype.setLocation = function( x, y ) 
 	{
-		this.x = x;
-		this.y = y;
-	};
-
-	Character.prototype.setDirection = function( dirX, dirY ) 
-	{
-		this.dirX = dirX;
-		this.dirY = dirY;
-	};
-
-	Character.prototype.getTile = function( x, y ) 
-	{
-		if ( x === undefined ) 
-		{
-			x = this.x;
-			y = this.y;
-		};
-
-		return { 
-			x : Math.floor( x / this.map.tileSize ), 
-			y : Math.floor( y / this.map.tileSize ) 
-		}
-	};
-
-	Character.prototype.getTileIndex = function( x, y ) 
-	{
-		var tile = this.getTile( x, y );
-
-		return this.map.getTileIndex( tile.x, tile.y );
-	};
-
-	Character.prototype.move = function( dirX, dirY ) 
-	{
-		// set direction
-		this.setDirection( dirX, dirY );
-
-		// get destination
-		var x = this.x + this.movingSpeed * this.dirX;
-		var y = this.y + this.movingSpeed * this.dirY;
-
 		// Collision detection
 
-		var rect = new Game.Rectangle( x, y, this.width, this.height );
-		var check = [];
-
-		if ( this.dirX < 0 ) 
+		if ( this.isMoving ) 
 		{
-			check.push( this.getTileIndex( rect.left, rect.top ) );
-			check.push( this.getTileIndex( rect.left, rect.bottom ) );
-		}
-
-		if ( this.dirX > 0 ) 
-		{
-			check.push( this.getTileIndex( rect.right, rect.top ) );
-			check.push( this.getTileIndex( rect.right, rect.bottom ) );
-		}
-
-		if ( this.dirY < 0 ) 
-		{
-			check.push( this.getTileIndex( rect.left, rect.top ) );
-			check.push( this.getTileIndex( rect.right, rect.top ) );
-		}
-
-		if ( this.dirY > 0 ) 
-		{
-			check.push( this.getTileIndex( rect.left, rect.bottom ) );
-			check.push( this.getTileIndex( rect.right, rect.bottom ) );
-		}
-
-		var collisions = [];
-
-		for ( var i in check )
-		{
-			var index = check[ i ];
-			var tile = this.map.getTile( index );
-
-			if ( tile && tile.collide ) 
-			{
-				var r = new Game.Rectangle( tile.x, tile.y, tile.width, tile.height );
-
-				collisions.push( r );
-			}
-		}
-
-		if ( collisions.length ) 
-		{
-			var tile = collisions[0];
+			var rect = new Game.Rectangle( x, y, this.width, this.height );
+			var check = [];
 
 			if ( this.dirX < 0 ) 
 			{
-				x = tile.right + 1;
+				check.push( this.map.getTileAt( rect.left, rect.top, true ) );
+				check.push( this.map.getTileAt( rect.left, rect.bottom, true ) );
 			}
 
 			if ( this.dirX > 0 ) 
 			{
-				x = tile.left - this.width - 1;
+				check.push( this.map.getTileAt( rect.right, rect.top, true ) );
+				check.push( this.map.getTileAt( rect.right, rect.bottom, true ) );
 			}
 
 			if ( this.dirY < 0 ) 
 			{
-				y = tile.bottom + 1;
+				check.push( this.map.getTileAt( rect.left, rect.top, true ) );
+				check.push( this.map.getTileAt( rect.right, rect.top, true ) );
 			}
 
 			if ( this.dirY > 0 ) 
 			{
-				y = tile.top - this.height - 1;
+				check.push( this.map.getTileAt( rect.left, rect.bottom, true ) );
+				check.push( this.map.getTileAt( rect.right, rect.bottom, true ) );
+			}
+
+			var collisions = [];
+
+			for ( var i in check )
+			{
+				var tile = check[ i ];
+
+				if ( tile && tile.collide ) 
+				{
+					collisions.push( tile );
+				}
+			}
+
+			if ( collisions.length ) 
+			{
+				var tile = collisions[0]; // only need to check 1
+				var rect = new Game.Rectangle( tile.x, tile.y, tile.width, tile.height );
+
+				if ( this.dirX < 0 ) 
+				{
+					x = rect.right + 1;
+				}
+
+				if ( this.dirX > 0 ) 
+				{
+					x = rect.left - this.width - 1;
+				}
+
+				if ( this.dirY < 0 ) 
+				{
+					y = rect.bottom + 1;
+				}
+
+				if ( this.dirY > 0 ) 
+				{
+					y = rect.top - this.height - 1;
+				}
 			}
 		}
 
-		// set destination
+		if ( x == this.x && y == this.y ) 
+		{
+			return;
+		}
+
+		this.x = x;
+		this.y = y;
+
+		Game.events.dispatchEvent( 'characterLocationChange', [ this ] );
+	};
+
+	Character.prototype.setDirection = function( dirX, dirY ) 
+	{
+		if ( dirX == this.dirX && dirY == this.dirY ) 
+		{
+			return;
+		}
+
+		this.dirX = dirX;
+		this.dirY = dirY;
+
+		Game.events.dispatchEvent( 'characterDirectionChange', [ this ] );
+	};
+
+	Character.prototype.goto = function( b ) 
+	{
+		var a = this.map.getTileIndex( this.x, this.y, true );
+
+		this.path = this.map.getPath( a, b );
+		this.pathIndex = 0;
+	};
+
+	Character.prototype.walkPath = function() 
+	{
+		if ( ! this.path.length || this.pathIndex == -1 ) 
+		{
+			return;
+		}
+
+		var index = this.path[ this.pathIndex ];
+		var tile  = this.map.getTile( index );
+
+		var distance = Game.util.getDistance( this.x, this.y, tile.x, tile.y );
+
+		
+	};
+
+	Character.prototype.move = function( dirX, dirY ) 
+	{
+		this.setDirection( dirX, dirY );
+
+		var x = this.x + this.movingSpeed * this.dirX;
+		var y = this.y + this.movingSpeed * this.dirY;
+
+		this.isMoving = true;
+
 		this.setLocation( x, y );
+	};
+
+	Character.prototype.stop = function() 
+	{
+		this.isMoving = false;
 	};
 
 	Character.prototype.render = function() 
 	{
 		var context = Game.canvas.getContext( '2d' );
 
-		// Pedestal
-		context.save()
+		context.save();
 		context.fillStyle = 'red';
 		context.fillRect( this.x, this.y, this.width, this.height );
 		context.restore();
-
-		// Looking direction
-
-		context.save()
-		context.beginPath();
-
-		// left
-		if ( this.dirX < 0 ) 
-		{
-			context.moveTo( this.x + this.width, this.y + this.height );
-			context.lineTo( this.x, this.y + this.height / 2 );
-			context.lineTo( this.x + this.width, this.y );
-		}
-
-		// right
-		if ( this.dirX > 0 ) 
-		{
-			context.moveTo( this.x, this.y + this.height );
-			context.lineTo( this.x + this.width, this.y + this.height / 2 );
-			context.lineTo( this.x, this.y );
-		}
-
-		// up
-		if ( this.dirY < 0 ) 
-		{
-			context.moveTo( this.x, this.y + this.height );
-			context.lineTo( this.x + this.width / 2, this.y );
-			context.lineTo( this.x + this.width, this.y + this.height );
-		}
-
-		// down
-		if ( this.dirY > 0 ) 
-		{
-			context.moveTo( this.x, this.y );
-			context.lineTo( this.x + this.width / 2, this.y + this.height );
-			context.lineTo( this.x + this.width, this.y );
-		}
-
-		context.fillStyle = 'black';
-		context.fill();
-		context.closePath();
-		context.restore()
 	};
 
 	Game.Character = Character;
 
 })();
+

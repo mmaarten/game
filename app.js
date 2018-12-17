@@ -147,7 +147,7 @@ window.App = {};
 		//App.hero.movingSpeed = 2;
 		//App.map.addCharacter( App.hero, 2, 2 );
 
-		var amount = 5;
+		var amount = 1;
 
 		for (var i = 0; i < amount; i++ ) 
 		{

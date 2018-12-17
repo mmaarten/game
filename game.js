@@ -199,7 +199,7 @@ window.Game = {};
 		this.tileData       = options.tileData;
 		this.tileProperties = options.tileProperties;
 		this.tiles          = {};
-		this.characters     = [];
+		this.characters     = {};
 
 		// create tiles
 		for ( var index = 0; index < this.tileData.length; index++ ) 
@@ -425,7 +425,7 @@ window.Game = {};
 
 		character.setLocation( x, y );
 
-		this.characters.push( character );
+		this.characters[ character.id ] = character;
 
 		Game.events.dispatchEvent( 'characterAdded', [ character ] );
 	};
@@ -498,6 +498,8 @@ window.Game = {};
 		this.height      = 24;
 		this.dirX        = 0;
 		this.dirY        = 0;
+		this.targetDirX  = 0;
+		this.targetDirY  = 0;
 		this.lookingDirX = 0;
 		this.lookingDirY = 0;
 		this.movingSpeed = 3;
@@ -530,8 +532,10 @@ window.Game = {};
 
 	Character.prototype.move = function( dirX, dirY ) 
 	{
-		this.dirX = dirX;
-		this.dirY = dirY;
+		this.targetDirX = Math.round( dirX );
+		this.targetDirY = Math.round( dirY );
+
+		console.log( this.targetDirX, this.targetDirY, this.dirX, this.dirY );
 
 		var x = this.x + this.movingSpeed * this.dirX;
 		var y = this.y + this.movingSpeed * this.dirY;
@@ -576,6 +580,31 @@ window.Game = {};
 
 	Character.prototype.update = function() 
 	{
+		// 0 => 1, -1 => 0, 1 = 0; -1 = 0;
+
+		var steeringSpeedX = Math.abs( this.targetDirX - this.dirX ) / 10;
+		var steeringSpeedY = Math.abs( this.targetDirY - this.dirY ) / 10;
+
+		if ( this.dirX < this.targetDirX ) 
+		{
+			this.dirX += steeringSpeedX;
+		}
+
+		else if ( this.dirX > this.targetDirX )
+		{
+			this.dirX -= steeringSpeedX; 
+		}
+
+		if ( this.dirY < this.targetDirY ) 
+		{
+			this.dirY += steeringSpeedY;
+		}
+
+		else if ( this.dirY > this.targetDirY )
+		{
+			this.dirY -= steeringSpeedY; 
+		}
+
 		// Check if path
 		if ( this.pathIndex != -1 ) 
 		{
@@ -583,6 +612,7 @@ window.Game = {};
 			if ( this.target ) 
 			{
 				var distance = Game.util.getDistance( this.x, this.y, this.target.x, this.target.y );
+				var accuracy = Game.util.getRandomInteger( -22, 22 );
 
 				if ( distance < this.movingSpeed ) 
 				{
@@ -597,7 +627,7 @@ window.Game = {};
 					// destination reached
 					else
 					{
-						this.setLocation( this.target.x, this.target.y );
+						//this.setLocation( this.target.x, this.target.y );
 
 						// reset path
 						this.path = [];
@@ -605,6 +635,7 @@ window.Game = {};
 
 						this.target = null;
 
+						// notify
 						Game.events.dispatchEvent( 'characterDestinationReached', [ this ] );
 					}
 				}

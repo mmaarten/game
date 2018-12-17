@@ -24,7 +24,7 @@ window.Game = {};
 
 		this.elem       = options.elem;
 		this.fps        = options.fps;
-		this.keys       = options.keys;
+		this.keys       = Object.assign( {}, defaults.keys, options.keys );
 		this.events     = new Game.EventManager();
 		this.interval   = null;
 		this.keyPressed = null;
@@ -43,6 +43,8 @@ window.Game = {};
 
 	Game.start = function()
 	{
+		// Track key pressed
+
 		document.addEventListener( 'keydown', function( event )
 		{
 			Game.keyPressed = event.keyCode;
@@ -53,13 +55,19 @@ window.Game = {};
 			Game.keyPressed = null;
 		});
 
+		// Set update interval
+
 		this.interval = setInterval( function()
 		{
 			Game.update();
 
 		}, 1000 / this.fps );
 
+		// Notify
+
 		this.events.dispatchEvent( 'gameStart' );
+
+		// Add canvas to DOM
 
 		this.elem.classList.add( 'game' );
 		this.elem.appendChild( this.canvas );
@@ -68,11 +76,11 @@ window.Game = {};
 })();
 
 /**
- * Util
+ * Utilities
  */
 (function()
 {
-	getDistance = function( x1, y1, x2, y2 ) 
+	function getDistance( x1, y1, x2, y2 ) 
 	{
 		var x = x1 - x2;
 		var y = y1 - y2;
@@ -80,7 +88,7 @@ window.Game = {};
         return Math.sqrt( x * x + y * y );
     };
 
-    getAngle = function( x1, y1, x2, y2, degrees ) 
+    function getAngle( x1, y1, x2, y2, degrees ) 
 	{
 		var x = x2 - x1;
 		var y = y2 - y1;
@@ -95,7 +103,7 @@ window.Game = {};
         return radians;
     };
 
-    function getRandomInteger(min, max) 
+    function getRandomInteger( min, max ) 
     {
 	    min = Math.ceil( min );
 	    max = Math.floor( max );
@@ -194,7 +202,7 @@ window.Game = {};
 		this.characters     = [];
 
 		// create tiles
-		for (var index = 0; index < this.tileData.length; index++ ) 
+		for ( var index = 0; index < this.tileData.length; index++ ) 
 		{
 			this.setTile( index, this.tileData[ index ] );
 		}
@@ -227,43 +235,19 @@ window.Game = {};
 		var options = this.tileProperties[ type ] || {};
 		var update  = this.tiles[ index ] !== undefined;
 
-		// TODO : make class
-		var tile = 
-		{
-			x       : loc.x * this.tileSize,
-			y       : loc.y * this.tileSize,
-			width   : this.tileSize,
-			height  : this.tileSize,
-			collide : false,
-			type    : type,
-			index   : index,
-			render  : function()
-			{
-				// TODO : sprite not here
-				var sprite = 
-				{
-					1 : 'ivory', // floor
-					2 : '#110B11', // wall
-				};
-
-				var fill = sprite[ this.type ];
-
-				var context = Game.canvas.getContext( '2d' );
-
-				context.save();
-				context.translate( this.x, this.y );
-				context.fillStyle = fill;
-				context.fillRect( 0, 0, this.width, this.height );
-				context.restore();
-
-				Game.events.dispatchEvent( 'tileRender', [ this, context ] );
-			},
-		};
+		var tile = new Game.Tile();
+		tile.x       = loc.x * this.tileSize;
+		tile.y       = loc.y * this.tileSize;
+		tile.width   = this.tileSize;
+		tile.height  = this.tileSize;
+		tile.collide = false;
+		tile.type    = type;
+		tile.index   = index;
 
 		Object.assign( tile, options );
 
-		this.tiles[ tile.index ] = tile;
-		this.tileData[ tile.index ] = type;
+		this.tiles[ tile.index ]    = tile;
+		this.tileData[ tile.index ] = tile.type;
 
 		if ( update ) 
 		{
@@ -465,6 +449,46 @@ window.Game = {};
 
 (function()
 {
+	function Tile()
+	{
+		this.x;
+		this.y;
+		this.width   = 0;
+		this.height  = 0;
+		this.collide = false;
+		this.type    = 0;
+		this.index   = -1;
+	}
+
+	Tile.prototype.render = function() 
+	{
+		// TODO : sprite not here
+		var sprite = 
+		{
+			1 : 'ivory', // floor
+			2 : '#110B11', // wall,
+			3 : 'blue', // water
+		};
+
+		var fill = sprite[ this.type ];
+
+		var context = Game.canvas.getContext( '2d' );
+
+		context.save();
+		context.translate( this.x, this.y );
+		context.fillStyle = fill;
+		context.fillRect( 0, 0, this.width, this.height );
+		context.restore();
+
+		Game.events.dispatchEvent( 'tileRender', [ this, context ] );
+	};
+
+	Game.Tile = Tile;
+
+})();
+
+(function()
+{
 	function Character( id )
 	{
 		this.id = id;
@@ -474,36 +498,40 @@ window.Game = {};
 		this.height      = 24;
 		this.dirX        = 0;
 		this.dirY        = 0;
+		this.lookingDirX = 0;
+		this.lookingDirY = 0;
 		this.movingSpeed = 3;
 		this.path        = [];
 		this.pathIndex   = -1;
-
-		this.target = null;
+		this.target      = null;
 	}
 
 	Character.prototype.setLocation = function( x, y ) 
 	{
-		var destination = 
-		{
-			x : x,
-			y : y,
-		};
-
-		Game.events.dispatchEvent( 'characterDestination', [ this, destination ] );
-
-		this.x = destination.x;
-		this.y = destination.y;
+		this.x = x;
+		this.y = y;
 	};
 
-	Character.prototype.setDirection = function( dirX, dirY ) 
+	Character.prototype.setLookingDirection = function( dirX, dirY ) 
 	{
-		this.dirX = dirX;
-		this.dirY = dirY;
+		this.lookingDirX = dirX;
+		this.lookingDirY = dirY;
+	};
+
+	Character.prototype.lookAt = function( x, y ) 
+	{
+		var distance = Game.util.getDistance( this.x, this.y, x, y );
+		
+		var dirX = ( x - this.x ) / distance;
+		var dirY = ( y - this.y ) / distance;
+
+		this.setLookingDirection( dirX, dirY );
 	};
 
 	Character.prototype.move = function( dirX, dirY ) 
 	{
-		this.setDirection( dirX, dirY );
+		this.dirX = dirX;
+		this.dirY = dirY;
 
 		var x = this.x + this.movingSpeed * this.dirX;
 		var y = this.y + this.movingSpeed * this.dirY;
@@ -511,15 +539,39 @@ window.Game = {};
 		this.setLocation( x, y );
 	};
 
-	Character.prototype.moveTo = function( target ) 
+	Character.prototype.moveTo = function( x, y ) 
 	{
-		this.target = target;
+		var distance = Game.util.getDistance( this.x, this.y, x, y );
+		
+		var dirX = ( x - this.x ) / distance;
+		var dirY = ( y - this.y ) / distance;
+
+		this.move( dirX, dirY );
 	};
 
 	Character.prototype.setPath = function( path ) 
 	{
 		this.path = path;
 		this.pathIndex = 0;
+
+		this.follow( this.path[ this.pathIndex ] );
+	};
+
+	Character.prototype.follow = function( x, y ) 
+	{
+		var target;
+
+		if ( y !== undefined ) 
+		{
+			target = { x : x, y : y, };
+		}
+
+		else
+		{
+			target = x;
+		}
+
+		this.target = target;
 	};
 
 	Character.prototype.update = function() 
@@ -539,7 +591,7 @@ window.Game = {};
 					{
 						this.pathIndex++;
 
-						this.target = this.path[ this.pathIndex ];
+						this.follow( this.path[ this.pathIndex ] )
 					}
 
 					// destination reached
@@ -547,6 +599,7 @@ window.Game = {};
 					{
 						this.setLocation( this.target.x, this.target.y );
 
+						// reset path
 						this.path = [];
 						this.pathIndex = -1;
 
@@ -556,30 +609,12 @@ window.Game = {};
 					}
 				}
 			}
-
-			else
-			{
-				// set target
-				this.target = this.path[ this.pathIndex ];
-			}
 		}
 
 		if ( this.target ) 
 		{
-			// direction
-
-			var distance = Game.util.getDistance( this.x, this.y, this.target.x, this.target.y );
-			var dirX = ( this.target.x - this.x ) / distance;
-			var dirY = ( this.target.y - this.y ) / distance;
-
-			this.setDirection( dirX, dirY );
-
-			// destination
-
-			var x = this.x + this.dirX * this.movingSpeed;
-			var y = this.y + this.dirY * this.movingSpeed;
-
-			this.setLocation( x, y );
+			this.moveTo( this.target.x, this.target.y );
+			this.lookAt( this.target.x, this.target.y );
 		}
 	};
 
@@ -590,7 +625,7 @@ window.Game = {};
 		context.save();
 		context.translate( this.x, this.y );
 		// look towards direction
-		context.rotate( Math.atan2( this.dirY, this.dirX ) );
+		context.rotate( Math.atan2( this.lookingDirY, this.lookingDirX ) );
 		// rectangle
 		context.fillStyle = 'red';
 		context.fillRect( - this.width / 2, - this.height / 2, this.width, this.height );

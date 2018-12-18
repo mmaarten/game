@@ -5,45 +5,59 @@ window.Game = {};
 {
 	Game.init = function( options )
 	{
-		var defaults = 
-		{
-			elem         : document.body || null,
-			canvasWidth  : 800,
-			canvasHeight : 600,
-			fps          : 24,
-			keys :
-			{
-				up    : 90, // z
-				right : 68, // d
-				down  : 83, // s
-				left  : 81, // q
-			}
-		};
+		console.log( 'init game' );
 
-		options = Object.assign( {}, defaults, options );
+		options = Object.assign( {}, this.defaultOptions, options );
 
-		this.elem       = options.elem;
+		this.elem       = options.elem || document.body;
 		this.fps        = options.fps;
-		this.keys       = Object.assign( {}, defaults.keys, options.keys );
+		this.keys       = options.keys;
 		this.events     = new Game.EventManager();
+		this.scenes     = new Game.SceneManager();
 		this.interval   = null;
 		this.keyPressed = null;
 
-		this.canvas = document.createElement( 'canvas' );
+		this.canvas        = document.createElement( 'canvas' );
 		this.canvas.width  = options.canvasWidth;
 		this.canvas.height = options.canvasHeight;
 
+		// Notify
 		this.events.dispatchEvent( 'gameInit' );
+	};
+
+	Game.defaultOptions =
+	{
+		elem         : null,
+		canvasWidth  : 800,
+		canvasHeight : 600,
+		fps          : 24,
+		keys :
+		{
+			up    : 90, // z
+			right : 68, // d
+			down  : 83, // s
+			left  : 81, // q
+		},
 	};
 
 	Game.update = function()
 	{
+		if ( this.scenes.currentScene ) 
+		{
+			this.scenes.currentScene.update();
+		}
+
+		// Notify
 		this.events.dispatchEvent( 'gameUpdate' );
 	};
 
 	Game.start = function()
 	{
-		// Track key pressed
+		console.log( 'start game' );
+
+		// Track pressed key
+
+		this.keyPressed = null;
 
 		document.addEventListener( 'keydown', function( event )
 		{
@@ -60,7 +74,7 @@ window.Game = {};
 		this.interval = setInterval( function()
 		{
 			Game.update();
-
+			
 		}, 1000 / this.fps );
 
 		// Notify
@@ -121,6 +135,31 @@ window.Game = {};
 })();
 
 /**
+ * Rectangle
+ */
+(function()
+{
+	function Rectangle( x, y, width, height )
+	{
+		this.left   = x;
+		this.right  = x + width;
+		this.top    = y;
+		this.bottom = y + height;
+	}
+
+	Rectangle.prototype.intersects = function( r ) 
+	{
+		return ! ( r.left > this.right || 
+           r.right < this.left || 
+           r.top > this.bottom ||
+           r.bottom < this.top );
+	};
+
+	Game.Rectangle = Rectangle;
+
+})();
+
+/**
  * Event Manager
  */
 (function()
@@ -160,27 +199,73 @@ window.Game = {};
 })();
 
 /**
- * Rectangle
+ * Scene Manager
  */
 (function()
 {
-	function Rectangle( x, y, width, height )
+	function SceneManager()
 	{
-		this.left   = x;
-		this.right  = x + width;
-		this.top    = y;
-		this.bottom = y + height;
+		this.scenes = {};
+		this.currentScene = null;
 	}
 
-	Rectangle.prototype.intersects = function( r ) 
+	SceneManager.prototype.addScene = function( id, options ) 
 	{
-		return ! ( r.left > this.right || 
-           r.right < this.left || 
-           r.top > this.bottom ||
-           r.bottom < this.top );
+		var scene = new Game.Scene( id );
+
+		Object.assign( scene, options );
+
+		this.scenes[ scene.id ] = scene;
 	};
 
-	Game.Rectangle = Rectangle;
+	SceneManager.prototype.removeScene = function( id ) 
+	{
+		delete this.scenes[ id ];
+	};
+
+	SceneManager.prototype.setCurrentScene = function( id ) 
+	{
+		var scene = this.scenes[ id ];
+
+		if ( this.currentScene ) 
+		{
+			this.currentScene.destroy();
+		}
+
+		this.currentScene = scene;
+		this.currentScene.init();
+	};
+
+	Game.SceneManager = SceneManager;
+
+})();
+
+/**
+ * Scene
+ */
+(function()
+{
+	function Scene( id )
+	{
+		this.id = id;;
+	}
+
+	Scene.prototype.init = function() 
+	{
+		
+	};
+
+	Scene.prototype.update = function() 
+	{
+		
+	};
+
+	Scene.prototype.destroy = function() 
+	{
+		
+	};
+
+	Game.Scene = Scene;
 
 })();
 
@@ -191,6 +276,8 @@ window.Game = {};
 {
 	function Map( options )
 	{
+		console.log( 'init map' );
+
 		options = Object.assign( {}, Map.defaultOptions, options );
 
 		this.width          = options.width;
@@ -200,9 +287,10 @@ window.Game = {};
 		this.tileProperties = options.tileProperties;
 		this.tiles          = {};
 		this.characters     = {};
+		this.fields         = [];
 
-		// create tiles
-		for ( var index = 0; index < this.tileData.length; index++ ) 
+		// Create tiles
+		for ( index = 0; index < this.tileData.length; index++ )
 		{
 			this.setTile( index, this.tileData[ index ] );
 		}
@@ -215,7 +303,26 @@ window.Game = {};
 		tileSize : 32,
 		tileData : [],
 		tileProperties : {},
-	};
+	}
+
+	Map.prototype.getTiles = function( x, y, width, height )
+	{
+		var rect = new Game.Rectangle( x, y, width, height );
+
+		var tiles = [];
+
+		tiles.push( this.getTileIndex( rect.right, rect.top, true ) );
+		tiles.push( this.getTileIndex( rect.right, rect.bottom, true ) );
+		tiles.push( this.getTileIndex( rect.left, rect.bottom, true ) );
+		tiles.push( this.getTileIndex( rect.left, rect.top, true ) );
+		
+		tiles = tiles.filter( function( value, index, self )
+		{
+			return self.indexOf( value ) === index;
+		});
+
+		return tiles;
+	}
 
 	Map.prototype.getTile = function( index ) 
 	{
@@ -231,42 +338,48 @@ window.Game = {};
 
 	Map.prototype.setTile = function( index, type ) 
 	{
+		var current  = this.tiles[ index ];
 		var loc     = this.getTileLocation( index );
 		var options = this.tileProperties[ type ] || {};
-		var update  = this.tiles[ index ] !== undefined;
 
 		var tile = new Game.Tile();
-		tile.x       = loc.x * this.tileSize;
-		tile.y       = loc.y * this.tileSize;
-		tile.width   = this.tileSize;
-		tile.height  = this.tileSize;
-		tile.collide = false;
-		tile.type    = type;
-		tile.index   = index;
+
+		tile.x      = loc.x * this.tileSize;
+		tile.y      = loc.y * this.tileSize;
+		tile.width  = this.tileSize;
+		tile.height = this.tileSize;
+		tile.type   = type;
+		tile.index  = index;
 
 		Object.assign( tile, options );
 
-		this.tiles[ tile.index ]    = tile;
+		if ( current ) 
+		{
+			delete this.tiles[ current.index ];
+
+			this.tileData[ index ] = 0;
+
+			Game.events.dispatchEvent( 'tileRemoved', [ current ] );
+		}
+
+		this.tiles[ tile.index ] = tile;
 		this.tileData[ tile.index ] = tile.type;
 
-		if ( update ) 
+		if ( current ) 
 		{
-			Game.events.dispatchEvent( 'tileChange', [ tile ] );
+			Game.events.dispatchEvent( 'tileChange', [ tile, current ] );
 		}
 
-		else
-		{
-			Game.events.dispatchEvent( 'tileSet', [ tile ] );
-		}
+		Game.events.dispatchEvent( 'tileSet', [ tile ] );
 	};
 
 	Map.prototype.getTileIndex = function( x, y, translate ) 
 	{
-		if ( translate ) 
+		if ( translate )
 		{
 			x = Math.floor( x / this.tileSize );
 			y = Math.floor( y / this.tileSize );
-		}
+		};
 
 		return this.width * y + x;
 	};
@@ -276,7 +389,7 @@ window.Game = {};
 		var x = index % this.width;
 		var y = ( index - x ) / this.width;
 
-		if ( translate ) 
+		if ( translate )
 		{
 			x *= this.tileSize;
 			y *= this.tileSize;
@@ -305,22 +418,21 @@ window.Game = {};
 		if ( s && ! s.collide ) neighbors.push( s.index );
 		if ( w && ! w.collide ) neighbors.push( w.index );
 
-		if ( diagonal )
+		if ( diagonal ) 
 		{
-			if ( ne && ! ne.collide && n && ! n.collide && e && ! e.collide ) neighbors.push( ne.index );
-			if ( se && ! se.collide && s && ! s.collide && e && ! e.collide ) neighbors.push( se.index );
-			if ( sw && ! sw.collide && s && ! s.collide && w && ! w.collide ) neighbors.push( sw.index );
-			if ( nw && ! nw.collide && n && ! n.collide && w && ! w.collide ) neighbors.push( nw.index );
-		}
-	
+			if ( n && ! n.collide && e && ! e.collide ) neighbors.push( ne.index );
+			if ( s && ! s.collide && e && ! e.collide ) neighbors.push( se.index );
+			if ( s && ! s.collide && w && ! w.collide ) neighbors.push( sw.index );
+			if ( n && ! n.collide && w && ! w.collide ) neighbors.push( nw.index );
+		};
+
 		return neighbors;
 	};
 
 	Map.prototype.getFlowField = function( index ) 
 	{
-		var frontier = [ index ];
-		var visited  = { [ index ] : 0 };
-	
+		var frontier = [ index ], visited = { [ index ] : 0 };
+
 		while ( frontier.length )
 		{
 			var current   = frontier.shift();
@@ -333,7 +445,6 @@ window.Game = {};
 				if ( visited[ next ] === undefined ) 
 				{
 					frontier.push( next );
-
 					visited[ next ] = 1 + visited[ current ];
 				}
 			}
@@ -346,37 +457,29 @@ window.Game = {};
 	{
 		var field = this.getFlowField( b );
 
-		// Check if A can reach B
-
 		if ( field[ a ] === undefined || field[ b ] === undefined ) 
 		{
 			console.warn( 'Unable to find path from ' + a + ' to ' + b + '.' );
 
-			return null;
+			return [];
 		}
 
-		// create path
-
-		var frontier = [ a ];
-		var visited  = { [ a ] : true };
 		var path = [];
-	
+
+		var frontier = [ a ], visited = { [ a ] : true };
+
 		while ( frontier.length )
 		{
 			var current   = frontier.shift();
 			var neighbors = this.getTileNeighbors( current, true );
-
-			// Get neighbor with lowest cost
-
-			var next, cost;
+			var next;
 
 			for ( var i in neighbors )
 			{
 				var neighbor = neighbors[ i ];
 
-				if ( cost === undefined || cost > field[ neighbor ] ) 
+				if ( next === undefined || field[ next ] > field[ neighbor ] ) 
 				{
-					cost = field[ neighbor ];
 					next = neighbor;
 				}
 			}
@@ -384,14 +487,11 @@ window.Game = {};
 			if ( next !== undefined && visited[ next ] === undefined ) 
 			{
 				frontier.push( next );
-
 				visited[ next ] = true;
 
 				path.push( next );
 			}
 		}
-
-		// convert indexes to locations
 
 		if ( translate ) 
 		{
@@ -399,9 +499,9 @@ window.Game = {};
 
 			for ( var i in path )
 			{
-				var tile = this.getTile( path[ i ] );
+				var index = path[ i ];
+				var tile = this.getTile( index );
 
-				// center tile
 				_path.push(
 				{
 					x : tile.x + tile.width / 2,
@@ -412,26 +512,49 @@ window.Game = {};
 			path = _path;
 		}
 
-		//
-
 		return path;
 	};
 
 	Map.prototype.addCharacter = function( character, x, y ) 
 	{
-		// center on tile
-		x = x * this.tileSize + this.tileSize / 2;
-		y = y * this.tileSize + this.tileSize / 2;
+		var tile = this.getTileAt( x, y );
 
-		character.setLocation( x, y );
+		character.setLocation( 
+			tile.x + ( this.tileSize - character.width ) / 2, 
+			tile.y + ( this.tileSize - character.height ) / 2 );
 
 		this.characters[ character.id ] = character;
 
 		Game.events.dispatchEvent( 'characterAdded', [ character ] );
 	};
 
+	Map.prototype.removeCharacter = function( id ) 
+	{
+		var character = this.characters[ id ];
+
+		delete this.characters[ id ];
+
+		Game.events.dispatchEvent( 'characterRemoved', [ character ] );
+
+		return character;
+	};
+
+	Map.prototype.update = function() 
+	{
+		for ( var i in this.characters )
+		{
+			this.characters[ i ].update();
+		}
+
+		this.render();
+	};
+
 	Map.prototype.render = function() 
 	{
+		var context = Game.canvas.getContext( '2d' );
+
+		context.clearRect( 0, 0, Game.canvas.width, Game.canvas.height );
+
 		for ( var i in this.tiles )
 		{
 			this.tiles[ i ].render();
@@ -447,27 +570,28 @@ window.Game = {};
 
 })();
 
+/**
+ * Tile
+ */
 (function()
 {
 	function Tile()
 	{
 		this.x;
 		this.y;
-		this.width   = 0;
-		this.height  = 0;
-		this.collide = false;
+		this.width;
+		this.height;
 		this.type    = 0;
 		this.index   = -1;
+		this.collide = false;
 	}
 
 	Tile.prototype.render = function() 
 	{
-		// TODO : sprite not here
 		var sprite = 
 		{
-			1 : 'ivory', // floor
-			2 : '#110B11', // wall,
-			3 : 'blue', // water
+			0 : 'transparent',
+			1 : 'gray',
 		};
 
 		var fill = sprite[ this.type ];
@@ -487,187 +611,186 @@ window.Game = {};
 
 })();
 
+/**
+ * Character
+ */
 (function()
 {
-	function Character( id )
+	function Character( id, type )
 	{
-		this.id = id;
+		this.id   = id;
+		this.type = type || 1;
 		this.x;
 		this.y;
-		this.width       = 24;
-		this.height      = 24;
+		this.width       = 16;
+		this.height      = 16;
 		this.dirX        = 0;
 		this.dirY        = 0;
-		this.targetDirX  = 0;
-		this.targetDirY  = 0;
 		this.lookingDirX = 0;
 		this.lookingDirY = 0;
 		this.movingSpeed = 3;
 		this.path        = [];
 		this.pathIndex   = -1;
-		this.target      = null;
 	}
 
 	Character.prototype.setLocation = function( x, y ) 
 	{
-		this.x = x;
-		this.y = y;
-	};
+		var origin      = { x : this.x, y : this.y };
+		var destination = { x : x, y : y };
 
-	Character.prototype.setLookingDirection = function( dirX, dirY ) 
-	{
-		this.lookingDirX = dirX;
-		this.lookingDirY = dirY;
-	};
+		Game.events.dispatchEvent( 'characterDestination', [ this, destination ] );
+
+		this.x = destination.x;
+		this.y = destination.y;
+
+		Game.events.dispatchEvent( 'characterLocationChange', [ this, origin ] );
+	}
 
 	Character.prototype.lookAt = function( x, y ) 
 	{
 		var distance = Game.util.getDistance( this.x, this.y, x, y );
-		
-		var dirX = ( x - this.x ) / distance;
-		var dirY = ( y - this.y ) / distance;
 
-		this.setLookingDirection( dirX, dirY );
-	};
+		this.lookingDirX = ( x - this.x ) / distance;
+		this.lookingDirY = ( y - this.y ) / distance;
+
+		Game.events.dispatchEvent( 'characterLookingDirectionChange', [ this ] );
+	}
+
+	Character.prototype.setPath = function( path ) 
+	{
+		this.path = this.normalizePath( path );
+		this.pathIndex = 0;
+
+		Game.events.dispatchEvent( 'characterPathChange', [ this ] );
+	}
+
+	Character.prototype.normalizePath = function( path ) 
+	{
+		var _path = [];
+
+		for ( var i in path )
+		{
+			var target = path[ i ];
+
+			_path.push(
+			{
+				x : target.x - this.width / 2,
+				y : target.y - this.height / 2,
+			})
+		}
+
+		return _path;
+	}
 
 	Character.prototype.move = function( dirX, dirY ) 
 	{
-		this.targetDirX = Math.round( dirX );
-		this.targetDirY = Math.round( dirY );
-
-		console.log( this.targetDirX, this.targetDirY, this.dirX, this.dirY );
+		this.dirX = dirX;
+		this.dirY = dirY;
 
 		var x = this.x + this.movingSpeed * this.dirX;
 		var y = this.y + this.movingSpeed * this.dirY;
 
 		this.setLocation( x, y );
-	};
+
+		Game.events.dispatchEvent( 'characterMove', [ this ] );
+	}
 
 	Character.prototype.moveTo = function( x, y ) 
 	{
 		var distance = Game.util.getDistance( this.x, this.y, x, y );
-		
+
 		var dirX = ( x - this.x ) / distance;
 		var dirY = ( y - this.y ) / distance;
 
 		this.move( dirX, dirY );
-	};
-
-	Character.prototype.setPath = function( path ) 
-	{
-		this.path = path;
-		this.pathIndex = 0;
-
-		this.follow( this.path[ this.pathIndex ] );
-	};
-
-	Character.prototype.follow = function( x, y ) 
-	{
-		var target;
-
-		if ( y !== undefined ) 
-		{
-			target = { x : x, y : y, };
-		}
-
-		else
-		{
-			target = x;
-		}
-
-		this.target = target;
-	};
+	}
 
 	Character.prototype.update = function() 
 	{
-		// 0 => 1, -1 => 0, 1 = 0; -1 = 0;
-
-		var steeringSpeedX = Math.abs( this.targetDirX - this.dirX ) / 10;
-		var steeringSpeedY = Math.abs( this.targetDirY - this.dirY ) / 10;
-
-		if ( this.dirX < this.targetDirX ) 
-		{
-			this.dirX += steeringSpeedX;
-		}
-
-		else if ( this.dirX > this.targetDirX )
-		{
-			this.dirX -= steeringSpeedX; 
-		}
-
-		if ( this.dirY < this.targetDirY ) 
-		{
-			this.dirY += steeringSpeedY;
-		}
-
-		else if ( this.dirY > this.targetDirY )
-		{
-			this.dirY -= steeringSpeedY; 
-		}
+		var target;
 
 		// Check if path
 		if ( this.pathIndex != -1 ) 
 		{
-			// check if target
-			if ( this.target ) 
+			// Set target
+			target = this.path[ this.pathIndex ];
+
+			// Check distance to target
+			var distance = Game.util.getDistance( this.x, this.y, target.x, target.y );
+
+			// next step is past target
+			if ( distance < this.movingSpeed ) 
 			{
-				var distance = Game.util.getDistance( this.x, this.y, this.target.x, this.target.y );
-				var accuracy = Game.util.getRandomInteger( -22, 22 );
-
-				if ( distance < this.movingSpeed ) 
+				// Next target available
+				if ( this.pathIndex + 1 < this.path.length - 1 )
 				{
-					// set next target
-					if ( this.pathIndex + 1 < this.path.length )
-					{
-						this.pathIndex++;
+					// Set next target
+					target = this.path[ ++this.pathIndex ];
+				}
 
-						this.follow( this.path[ this.pathIndex ] )
-					}
+				// No next target
+				else
+				{
+					// set location at target
+					this.setLocation( target.x, target.y );
 
-					// destination reached
-					else
-					{
-						//this.setLocation( this.target.x, this.target.y );
+					// Reset
+					target = null;
 
-						// reset path
-						this.path = [];
-						this.pathIndex = -1;
+					this.path = [];
+					this.pathIndex = -1;
 
-						this.target = null;
-
-						// notify
-						Game.events.dispatchEvent( 'characterDestinationReached', [ this ] );
-					}
+					// Notify
+					Game.events.dispatchEvent( 'characterDestinationReached', [ this ] );
 				}
 			}
 		}
 
-		if ( this.target ) 
+		// Move to target
+		if ( target ) 
 		{
-			this.moveTo( this.target.x, this.target.y );
-			this.lookAt( this.target.x, this.target.y );
+			this.lookAt( target.x, target.y )
+			this.moveTo( target.x, target.y );
 		}
-	};
+	}
 
 	Character.prototype.render = function() 
 	{
+		var sprite = 
+		{
+			1 : 'red',
+			2 : 'blue',
+		};
+
+		var fill    = sprite[ this.type ];
 		var context = Game.canvas.getContext( '2d' );
 
+		/**
+		 * Lower body
+		 */
 		context.save();
-		context.translate( this.x, this.y );
-		// look towards direction
-		context.rotate( Math.atan2( this.lookingDirY, this.lookingDirX ) );
-		// rectangle
-		context.fillStyle = 'red';
-		context.fillRect( - this.width / 2, - this.height / 2, this.width, this.height );
-		// looking direction
-		context.beginPath();
-		context.moveTo( - this.width / 2, - this.height / 2 );
-		context.lineTo( this.width / 2, 0 )
-		context.lineTo( - this.width / 2, this.height / 2 );
+		context.translate( this.x + this.width / 2, this.y + this.height / 2 );
+		context.rotate( Math.atan2( this.dirY, this.dirX ) );
 		context.fillStyle = 'black';
-		context.fill();
-		context.closePath();
+		context.fillRect( - this.width / 2, - this.height / 2, this.width, this.height );
+		context.restore();
+
+		/**
+		 * Upper body
+		 */
+		context.save();
+		context.translate( this.x + this.width / 2, this.y + this.height / 2 );
+		context.rotate( Math.atan2( this.lookingDirY, this.lookingDirX ) );
+		context.fillStyle = fill;
+		context.fillRect( - this.width / 2, - this.height / 2, this.width, this.height );
+		context.restore();
+
+		// Looking indicator
+		context.save();
+		context.translate( this.x + this.width / 2, this.y + this.height / 2 );
+		context.rotate( Math.atan2( this.lookingDirY, this.lookingDirX ) );
+		context.fill = 'black';
+		context.fillRect( 0, 0, this.width / 2, 1 );
 		context.restore();
 
 		Game.events.dispatchEvent( 'characterRender', [ this, context ] );

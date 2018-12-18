@@ -1,274 +1,429 @@
 
 window.App = {};
 
+/**
+ * Map Editor
+ */
 (function()
 {
-	function download( filename, text ) 
+	var mapEditor = 
 	{
-		var element = document.createElement('a');
-		element.setAttribute( 'href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
-		element.setAttribute( 'download', filename );
+		init : function( map )
+		{
+			this.map = map;
 
-		element.style.display = 'none';
-		document.body.appendChild(element);
+			// Right mouse click
+			window.oncontextmenu = function()
+			{
+				mapEditor.download( 'map', JSON.stringify( mapEditor.map.tileData ) );
 
-		element.click();
+			    return false;
+			}
 
-		document.body.removeChild(element);
+			// Tile change on canvas click
+			Game.canvas.addEventListener( 'click', this.handleMapClick );
+		},
+
+		download : function( filename, text )
+		{
+			var element = document.createElement( 'a' );
+
+			element.setAttribute( 'href', 'data:text/plain;charset=utf-8,' + encodeURIComponent( text ) );
+			element.setAttribute( 'download', filename );
+
+			element.style.display = 'none';
+			document.body.appendChild( element );
+
+			element.click();
+
+			document.body.removeChild( element );
+		},
+
+		handleMapClick : function( event )
+		{
+			var tile = mapEditor.map.getTileAt( event.layerX, event.layerY, true );
+			
+			var map = 
+			{
+				0 : 1,
+				1 : 0,
+			};
+
+			mapEditor.map.setTile( tile.index, map[ tile.type ] );
+		}
 	}
+
+	App.mapEditor = mapEditor;
+})();
+
+(function()
+{
+	App.scenes = {};
 
 	App.init = function()
 	{
-		this.hero = null;
-		this.map  = null;
-
 		Game.init(
 		{
 			canvasWidth  : 32 * 18,
-			canvasHeight : 32 * 15,
-			fps          : 24,
+			canvasHeight : 32 * 13,
 		});
 
 		Game.events.addEventListener( 'gameStart' , this.gameStart );
 		Game.events.addEventListener( 'gameUpdate', this.gameUpdate );
-		
-		//Game.events.addEventListener( 'tileRender', this.renderGrid );
-		Game.events.addEventListener( 'tileRender', this.renderFlowField );
-		//Game.events.addEventListener( 'tileRender', this.renderTileIndex );
+		Game.events.addEventListener( 'tileRender', this.tileRender );
+		Game.events.addEventListener( 'characterRender', this.characterRender );
 
-		Game.canvas.addEventListener( 'click', function( event )
+		for ( var id in this.scenes )
 		{
-			var b = App.map.getTileIndex( event.layerX, event.layerY, true );
+			Game.scenes.addScene( id, this.scenes[ id ] );
+		}
 
-			for ( var i in App.map.characters )
-			{
-				var character = App.map.characters[ i ];
-				var a = App.map.getTileIndex( character.x, character.y, true );
-
-				var path = App.map.getPath( a, b, true );
-
-				character.setPath( path );
-			}
-		});
-
-		Game.events.addEventListener( 'characterAdded', function( character )
-		{
-			if ( character != App.hero ) 
-			{
-				App.setCharacterPath( character );
-			}
-		});
-
-		Game.events.addEventListener( 'characterDestinationReached', function( character )
-		{
-			if ( character != App.hero ) 
-			{
-				var delay = Game.util.getRandomInteger( 2000, 10000 );
-
-				setTimeout( function()
-				{
-					App.setCharacterPath( character );
-				}, delay );
-			}
-			
-		});
+		Game.scenes.setCurrentScene( 'scene1' );
 
 		Game.start();
 	};
 
-	App.setCharacterPath = function( character )
+	App.addScene = function( id, options )
 	{
-		var a = App.map.getTileIndex( character.x, character.y, true );
+		this.scenes[ id ] = options;
+	}
 
-		var path, loops = 500;
+	App.tileRender = function( tile, context )
+	{
+		// Render grid
+		context.save();
+		context.translate( tile.x, tile.y );
+		context.strokeStyle = 'rgba( 0, 0, 0, .1 )';
+		context.strokeRect( 0, 0, tile.width, tile.height );
+		context.restore();
 
-		while ( ( path === undefined || ( path && ! path.length ) ) && loops )
+		// Render tile index
+		context.save();
+		context.translate( tile.x, tile.y );
+		context.textAlign = 'center';
+		context.font      = '8px monospace';
+		context.fillStyle = 'rgba( 0, 0, 0, .5 )';
+		context.fillText( tile.index, tile.width/2, tile.height/2 + 3 );
+		context.restore();
+	}
+
+	App.characterRender = function( character, context )
+	{
+		var scene = Game.scenes.currentScene;
+
+		// Render id
+		context.save();
+		context.translate( character.x, character.y );
+		context.textAlign = 'center';
+		context.font      = '8px monospace';
+		context.fillStyle = 'magenta';
+		context.fillText( character.id, character.width/2, -5 );
+		context.restore();
+
+		// Render tiles standing on
+
+		if ( scene ) 
 		{
-			var b = Game.util.getRandomInteger( 0, App.map.width * App.map.height );
+			var tiles = scene.map.getTiles( character.x, character.y, character.width, character.height );
 
-			var tile = App.map.getTile( b );
-
-			if ( tile && ! tile.collide ) 
+			for ( var i in tiles )
 			{
-				path = App.map.getPath( a, b, true );
+				var index = tiles[ i ];
+				var tile = scene.map.getTile( index );
+
+				if ( ! tile ) 
+				{
+					continue;
+				}
+
+				context.save();
+				context.translate( tile.x, tile.y );
+				context.fillStyle = 'rgba( 255, 0,0,.25 )';
+				context.fillRect( 0, 0, tile.width, tile.height );
+				context.restore();
 			}
-
-			loops--;
 		}
-
-		if ( path && path.length ) 
-		{
-			character.setPath( path );
-
-			return true;
-		}
-
-		return false;
-	};
+	}
 
 	App.gameStart = function()
 	{
-		// Create map
-		App.map = new Game.Map( 
+		
+	}
+
+	App.gameUpdate = function()
+	{
+		//console.log( 'gameUpdate' );
+	}
+
+	window.onload = function()
+	{
+		App.init();
+	}
+
+})();
+
+/**
+ * Scene 1
+ */
+(function()
+{
+	var scene = {};
+
+	scene.init = function()
+	{
+		console.log( 'init scene', this.id );
+
+		var _this = this;
+
+		// Character destination
+		Game.events.addEventListener( 'characterDestination', function( character, destination )
 		{
-			width    : 18,
-			height   : 15,
+			_this.characterCollisionDetection( character, destination );
+		});
+
+		// Character added
+		Game.events.addEventListener( 'characterAdded', function( character )
+		{
+			// Set path
+
+			if ( character !== _this.player ) 
+			{
+				_this.setCharacterPath( character );
+			}
+		});
+
+		// Character destination reached
+		Game.events.addEventListener( 'characterDestinationReached', function( character )
+		{
+			// Set new path
+
+			if ( character !== _this.player ) 
+			{
+				setTimeout( function()
+				{
+					_this.setCharacterPath( character );
+
+				}, Game.util.getRandomInteger( 2000, 10000 ) )
+			}
+		});
+
+		// Character location change
+		Game.events.addEventListener( 'characterLocationChange', function( character, origin )
+		{
+			// Notify Tile change
+
+			var prev    = _this.map.getTiles( origin.x, origin.y, character.width, character.height );
+			var current = _this.map.getTiles( character.x, character.y, character.width, character.height );
+
+			if ( current.join( '|' ) != prev.join( '|' ) ) 
+			{
+				Game.events.dispatchEvent( 'characterTileChange', character );
+			}
+		});
+
+		this.player = new Game.Character( 'player', 1 );
+
+		this.map = new Game.Map(
+		{
+			width : 18,
+			height : 13,
 			tileSize : 32,
 			tileData : 
 			[
-				2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-				2,1,1,2,1,1,1,1,1,1,1,1,1,2,2,2,1,2,
-				2,1,1,2,1,1,1,1,2,1,2,2,1,1,1,1,1,2,
-				2,1,1,1,1,2,1,1,2,1,1,2,1,1,2,1,1,2,
-				2,1,1,2,1,2,1,1,2,1,1,2,1,1,1,2,1,2,
-				2,1,1,2,1,1,1,1,2,2,2,1,1,1,1,2,1,2,
-				2,1,1,1,1,1,2,1,1,1,1,1,1,1,2,2,1,2,
-				2,1,1,1,2,1,2,1,1,1,1,1,1,1,1,1,1,2,
-				2,1,1,2,2,1,1,2,1,1,2,2,1,1,1,1,1,2,
-				2,1,1,1,1,1,1,1,2,1,1,1,1,2,2,1,1,2,
-				2,1,1,2,2,1,1,1,1,1,1,2,1,2,1,2,1,2,
-				2,2,1,1,1,1,1,1,1,2,1,2,1,1,1,1,1,2,
-				2,2,1,1,2,1,1,1,2,2,1,1,1,1,2,1,1,2,
-				2,2,1,1,2,1,1,1,2,2,1,1,1,1,2,1,1,2,
-				2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+				1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+				1,0,0,0,0,0,0,0,0,1,0,1,0,1,0,0,0,1,
+				1,0,0,1,0,0,0,1,0,1,0,0,0,1,0,1,0,1,
+				1,0,0,1,0,0,0,1,0,1,1,1,0,1,0,1,0,1,
+				1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,
+				1,0,0,0,0,0,0,1,1,1,0,1,0,0,0,0,1,1,
+				1,0,0,0,0,0,0,0,1,1,0,0,0,1,0,0,0,1,
+				1,0,0,0,0,0,0,0,0,1,0,1,1,1,1,0,1,1,
+				1,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,
+				1,0,1,0,0,0,0,0,0,0,0,0,0,1,0,1,0,1,
+				1,1,0,1,0,0,0,0,0,0,0,1,0,1,1,1,1,1,
+				1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,
+				1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 			],
 			tileProperties : 
 			{
-				1 : { collide : false, },
-				2 : { collide : true, },
+				0 : { collide : false, },
+				1 : { collide : true, },
 			},
 		});
 
-		// Add characters
+		App.mapEditor.init( this.map );
 
-		App.hero = new Game.Character( 'hero' );
-		//App.hero.width = 10;
-		//App.hero.height = 10;
-		//App.hero.movingSpeed = 2;
-		//App.map.addCharacter( App.hero, 2, 2 );
+		/**
+		 * Add characters
+		 */
 
-		var amount = 1;
+		this.map.addCharacter( this.player, 1, 1 );
 
-		for (var i = 0; i < amount; i++ ) 
+		var amount = 100;
+
+		for ( var i = 0; i < amount; i++ ) 
 		{
-			var character = new Game.Character( 'ai' + ( i + 1 ) );
-			character.width = 10;
-			character.height = 10;
-			character.movingSpeed = 2;
-
-			App.map.addCharacter( character, 2, 2 );
+			var character = new Game.Character( 'ui' + ( i + 1 ), 2 );
+			var tileIndex = this.getRandomLocation();
+			var location  = this.map.getTileLocation( tileIndex );
+			
+			this.map.addCharacter( character, location.x, location.y );
 		}
+
+		// Let player look at cursor.
+		Game.canvas.addEventListener( 'mousemove', function( event )
+		{
+			_this.player.lookAt( event.layerX, event.layerY );
+		});
 	};
 
-	App.gameUpdate = function()
+	scene.setCharacterPath = function( character )
+	{
+		var a = this.map.getTileIndex( character.x, character.y, true );
+		var b = this.getRandomLocation();
+
+		if ( b === undefined ) 
+		{
+			return;
+		}
+
+		var path = this.map.getPath( a, b, true );
+
+		character.setPath( path );
+	}
+
+	scene.getRandomLocation = function()
+	{
+		var maxLoops = 100;
+		var location;
+
+		var loopCount = 0;
+
+		while ( location === undefined && maxLoops > loopCount )
+		{
+			var index = Game.util.getRandomInteger( 0, this.map.width * this.map.height );
+			var tile = this.map.getTile( index );
+
+			if ( tile !== undefined && ! tile.collide ) 
+			{
+				location = index;
+			}
+
+			loopCount++;
+		}
+
+		return location;
+	}
+
+	scene.characterCollisionDetection = function( character, destination )
+	{
+		var rect = new Game.Rectangle( destination.x, destination.y, character.width, character.height );
+		var check = [];
+
+		if ( character.dirX < 0 ) 
+		{
+			check.push( this.map.getTileAt( rect.left, rect.top, true ) );
+			check.push( this.map.getTileAt( rect.left, rect.bottom, true ) );
+		}
+
+		if ( character.dirX > 0 ) 
+		{
+			check.push( this.map.getTileAt( rect.right, rect.top, true ) );
+			check.push( this.map.getTileAt( rect.right, rect.bottom, true ) );
+		}
+
+		if ( character.dirY < 0 ) 
+		{
+			check.push( this.map.getTileAt( rect.left, rect.top, true ) );
+			check.push( this.map.getTileAt( rect.right, rect.top, true ) );
+		}
+
+		if ( character.dirY > 0 ) 
+		{
+			check.push( this.map.getTileAt( rect.left, rect.bottom, true ) );
+			check.push( this.map.getTileAt( rect.right, rect.bottom, true ) );
+		}
+
+		var collisions = [];
+		
+		for ( var i in check )
+		{
+			var tile = check[ i ];
+			var rect = new Game.Rectangle( tile.x, tile.y, tile.width, tile.height );
+
+			if ( tile.collide ) 
+			{
+				collisions.push( rect );
+			}
+		}
+
+		if ( ! collisions.length ) 
+		{
+			return;
+		}
+
+		var tile = collisions[0];
+
+		if ( character.dirX < 0 ) 
+		{
+			destination.x = tile.right + 1;
+		}
+
+		if ( character.dirX > 0 ) 
+		{
+			destination.x = tile.left - character.width - 1;
+		}
+
+		if ( character.dirY < 0 ) 
+		{
+			destination.y = tile.bottom + 1;
+		}
+
+		if ( character.dirY > 0 ) 
+		{
+			destination.y = tile.top - character.height - 1;
+		}
+	}
+
+	scene.update = function()
 	{
 		// up
 		if ( Game.keys.up == Game.keyPressed ) 
 		{
-			App.hero.move( 0, -1 );
+			this.player.move( 0, -1 );
 		}
 
 		// right
 		else if ( Game.keys.right == Game.keyPressed ) 
 		{
-			App.hero.move( 1, 0 );
+			this.player.move( 1, 0 );
 		}
 
 		// down
 		else if ( Game.keys.down == Game.keyPressed ) 
 		{
-			App.hero.move( 0, 1 );
+			this.player.move( 0, 1 );
 		}
 
 		// left
 		else if ( Game.keys.left == Game.keyPressed ) 
 		{
-			App.hero.move( -1, 0 );
+			this.player.move( -1, 0 );
 		}
 
 		else
 		{
-			//App.hero.stop();
+			//this.player.stop();
 		}
 
-		App.hero.update();
-
-		for ( var i in App.map.characters )
-		{
-			App.map.characters[ i ].update();
-		}
-
-		// render map
-		App.map.render();
+		this.map.update();
 	};
 
-	App.renderGrid = function( tile, context )
+	scene.destroy = function()
 	{
-		context.save();
-		context.translate( tile.x, tile.y );
-		context.strokeStyle = 'rgba( 0, 0, 0, .25 )';
-		context.strokeRect( 0, 0, tile.width, tile.height );
-		context.restore();
-	}
-
-	App.renderFlowField = function( tile, context )
-	{
-		if ( tile.collide ) 
-		{
-			return;
-		}
-
-		var color = 'purple';
-
-		context.save();
-		context.translate( tile.x + tile.width / 2, tile.y + tile.height / 2 );
-		context.beginPath();
-		context.arc( 0, 0, 1, 0, 2 * Math.PI );
-		context.closePath();
-		context.fillStyle = color;
-		context.fill();
-
-		var loc       = App.map.getTileLocation( tile.index );
-		var neighbors = App.map.getTileNeighbors( tile.index, true );
-
-		for ( var y = loc.y - 1; y <= loc.y + 1; y++ )
-		{
-			for ( var x = loc.x - 1; x <= loc.x + 1; x++ )
-			{
-				var index = App.map.getTileIndex( x, y );
-				
-				if ( index == tile.index || neighbors.indexOf( index ) == -1 ) 
-				{
-					continue;
-				}
-
-				context.beginPath();
-				context.moveTo( 0 , 0 );
-				context.lineTo( ( x - loc.x ) * ( tile.width / 2 ), ( y - loc.y ) * ( tile.height / 2 ) );
-				context.lineWidth = 0.5;
-				context.strokeStyle = color;
-				context.stroke();
-				context.closePath();
-			}
-		}
-
-		context.restore();
-	}
-
-	App.renderTileIndex = function( tile, context )
-	{
-		context.save();
-		context.translate( tile.x, tile.y );
-		context.font = '9px monospace';
-		context.fillStyle = 'rgba( 0, 0, 0, .25 )';
-		context.fillText( tile.index, 2, 9 );
-		context.restore();
-	}
-
-	window.onload = function()
-	{
-		// init app
-		App.init();
+		console.log( 'destroy', this.id );
 	};
+
+	App.addScene( 'scene1', scene );
 
 })();

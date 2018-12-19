@@ -9,7 +9,7 @@ window.Game = {};
 
 		options = Object.assign( {}, this.defaultOptions, options );
 
-		this.elem       = options.elem || document.body;
+		this.parent     = options.parent || document.body;
 		this.fps        = options.fps;
 		this.keys       = options.keys;
 		this.events     = new Game.EventManager();
@@ -18,8 +18,8 @@ window.Game = {};
 		this.keyPressed = null;
 
 		this.canvas        = document.createElement( 'canvas' );
-		this.canvas.width  = options.canvasWidth;
-		this.canvas.height = options.canvasHeight;
+		this.canvas.width  = options.width;
+		this.canvas.height = options.height;
 
 		// Notify
 		this.events.dispatchEvent( 'gameInit' );
@@ -27,10 +27,10 @@ window.Game = {};
 
 	Game.defaultOptions =
 	{
-		elem         : null,
-		canvasWidth  : 800,
-		canvasHeight : 600,
-		fps          : 24,
+		parent : null,
+		width  : 800,
+		heigth : 600,
+		fps    : 24,
 		keys :
 		{
 			up    : 90, // z
@@ -83,8 +83,8 @@ window.Game = {};
 
 		// Add canvas to DOM
 
-		this.elem.classList.add( 'game' );
-		this.elem.appendChild( this.canvas );
+		this.parent.classList.add( 'game' );
+		this.parent.appendChild( this.canvas );
 	};
 
 })();
@@ -250,7 +250,12 @@ window.Game = {};
 		this.id = id;;
 	}
 
-	Scene.prototype.init = function() 
+	Scene.prototype.preload = function() 
+	{
+		
+	};
+
+	Scene.prototype.create = function() 
 	{
 		
 	};
@@ -287,7 +292,7 @@ window.Game = {};
 		this.tileProperties = options.tileProperties;
 		this.tiles          = {};
 		this.characters     = {};
-		this.fields         = [];
+		this.items          = {};
 
 		// Create tiles
 		for ( index = 0; index < this.tileData.length; index++ )
@@ -307,21 +312,19 @@ window.Game = {};
 
 	Map.prototype.getTiles = function( x, y, width, height )
 	{
-		var rect = new Game.Rectangle( x, y, width, height );
+		var tiles = {};
 
-		var tiles = [];
-
-		tiles.push( this.getTileIndex( rect.right, rect.top, true ) );
-		tiles.push( this.getTileIndex( rect.right, rect.bottom, true ) );
-		tiles.push( this.getTileIndex( rect.left, rect.bottom, true ) );
-		tiles.push( this.getTileIndex( rect.left, rect.top, true ) );
-		
-		tiles = tiles.filter( function( value, index, self )
+		for ( var row = y; row <= y + height; row += height )
 		{
-			return self.indexOf( value ) === index;
-		});
+			for ( var col = x; col <= x + width; col += width )
+			{
+				var index = this.getTileIndex( col, row, true );
 
-		return tiles;
+				tiles[ index ] = true;
+			}
+		}
+		
+		return Object.keys( tiles );
 	}
 
 	Map.prototype.getTile = function( index ) 
@@ -338,7 +341,7 @@ window.Game = {};
 
 	Map.prototype.setTile = function( index, type ) 
 	{
-		var current  = this.tiles[ index ];
+		var current = this.tiles[ index ];
 		var loc     = this.getTileLocation( index );
 		var options = this.tileProperties[ type ] || {};
 
@@ -352,15 +355,6 @@ window.Game = {};
 		tile.index  = index;
 
 		Object.assign( tile, options );
-
-		if ( current ) 
-		{
-			delete this.tiles[ current.index ];
-
-			this.tileData[ index ] = 0;
-
-			Game.events.dispatchEvent( 'tileRemoved', [ current ] );
-		}
 
 		this.tiles[ tile.index ] = tile;
 		this.tileData[ tile.index ] = tile.type;
@@ -444,8 +438,10 @@ window.Game = {};
 
 				if ( visited[ next ] === undefined ) 
 				{
+					var tile = this.getTile( next );
+
 					frontier.push( next );
-					visited[ next ] = 1 + visited[ current ];
+					visited[ next ] = 1 + tile.cost + visited[ current ];
 				}
 			}
 		}
@@ -539,8 +535,37 @@ window.Game = {};
 		return character;
 	};
 
+	Map.prototype.addItem = function( item, x, y ) 
+	{
+		var tile = this.getTileAt( x, y );
+
+		item.setLocation( 
+			tile.x + ( this.tileSize - item.width ) / 2, 
+			tile.y + ( this.tileSize - item.height ) / 2 );
+
+		this.items[ item.id ] = item;
+
+		Game.events.dispatchEvent( 'itemAdded', [ item ] );
+	};
+
+	Map.prototype.removeTtem = function( id ) 
+	{
+		var item = this.items[ id ];
+
+		delete this.items[ id ];
+
+		Game.events.dispatchEvent( 'itemRemoved', [ item ] );
+
+		return item;
+	};
+
 	Map.prototype.update = function() 
 	{
+		for ( var i in this.items )
+		{
+			this.items[ i ].update();
+		}
+
 		for ( var i in this.characters )
 		{
 			this.characters[ i ].update();
@@ -558,6 +583,11 @@ window.Game = {};
 		for ( var i in this.tiles )
 		{
 			this.tiles[ i ].render();
+		}
+
+		for ( var i in this.items )
+		{
+			this.items[ i ].render();
 		}
 
 		for ( var i in this.characters )
@@ -584,6 +614,7 @@ window.Game = {};
 		this.type    = 0;
 		this.index   = -1;
 		this.collide = false;
+		this.cost    = 0;
 	}
 
 	Tile.prototype.render = function() 
@@ -592,6 +623,7 @@ window.Game = {};
 		{
 			0 : 'transparent',
 			1 : 'gray',
+			2 : 'blue',
 		};
 
 		var fill = sprite[ this.type ];
@@ -612,20 +644,82 @@ window.Game = {};
 })();
 
 /**
+ * Sprite
+ */
+(function()
+{
+	function Sprite( id )
+	{
+		this.id = id;
+		this.x;
+		this.y;
+		this.width;
+		this.height;
+		this.dirX = 0;
+		this.dirY = 0;
+		this.movingSpeed = 8;
+	}
+
+	Sprite.prototype.setLocation = function( x, y ) 
+	{
+		var origin      = { x : this.x, y : this.y };
+		var destination = { x : x, y : y };
+
+		Game.events.dispatchEvent( 'itemDestination', [ this, destination ] );
+
+		this.x = destination.x;
+		this.y = destination.y;
+
+		Game.events.dispatchEvent( 'itemLocationChange', [ this, origin ] );
+	}
+
+	Sprite.prototype.move = function( dirX, dirY ) 
+	{
+		this.dirX = dirX;
+		this.dirY = dirY;
+
+		var x = this.x + this.movingSpeed * this.dirX;
+		var y = this.y + this.movingSpeed * this.dirY;
+
+		this.setLocation( x, y );
+	}
+
+	Sprite.prototype.moveTo = function( x, y ) 
+	{
+		var distance = Game.util.getDistance( this.x, this.y, x, y );
+
+		var dirX = ( x - this.x ) / distance;
+		var dirY = ( y - this.y ) / distance;
+
+		this.move( dirX, dirY );
+	}
+
+	Sprite.prototype.update = function() 
+	{
+		
+	}
+
+	Sprite.prototype.render = function() 
+	{
+		
+	}
+
+	Game.Sprite = Sprite;
+
+})();
+
+/**
  * Character
  */
 (function()
 {
 	function Character( id, type )
 	{
-		this.id   = id;
-		this.type = type || 1;
-		this.x;
-		this.y;
+		Game.Sprite.call( this, id );
+
 		this.width       = 16;
 		this.height      = 16;
-		this.dirX        = 0;
-		this.dirY        = 0;
+		this.type        = type || 1;
 		this.lookingDirX = 0;
 		this.lookingDirY = 0;
 		this.movingSpeed = 3;
@@ -633,18 +727,8 @@ window.Game = {};
 		this.pathIndex   = -1;
 	}
 
-	Character.prototype.setLocation = function( x, y ) 
-	{
-		var origin      = { x : this.x, y : this.y };
-		var destination = { x : x, y : y };
-
-		Game.events.dispatchEvent( 'characterDestination', [ this, destination ] );
-
-		this.x = destination.x;
-		this.y = destination.y;
-
-		Game.events.dispatchEvent( 'characterLocationChange', [ this, origin ] );
-	}
+	Character.prototype = Object.create( Game.Sprite.prototype );
+	Character.prototype.constructor = Character;
 
 	Character.prototype.lookAt = function( x, y ) 
 	{
@@ -682,35 +766,12 @@ window.Game = {};
 		return _path;
 	}
 
-	Character.prototype.move = function( dirX, dirY ) 
-	{
-		this.dirX = dirX;
-		this.dirY = dirY;
-
-		var x = this.x + this.movingSpeed * this.dirX;
-		var y = this.y + this.movingSpeed * this.dirY;
-
-		this.setLocation( x, y );
-
-		Game.events.dispatchEvent( 'characterMove', [ this ] );
-	}
-
-	Character.prototype.moveTo = function( x, y ) 
-	{
-		var distance = Game.util.getDistance( this.x, this.y, x, y );
-
-		var dirX = ( x - this.x ) / distance;
-		var dirY = ( y - this.y ) / distance;
-
-		this.move( dirX, dirY );
-	}
-
 	Character.prototype.update = function() 
 	{
 		var target;
 
 		// Check if path
-		if ( this.pathIndex != -1 ) 
+		if ( this.path.length && this.pathIndex != -1 ) 
 		{
 			// Set target
 			target = this.path[ this.pathIndex ];
@@ -768,6 +829,7 @@ window.Game = {};
 		/**
 		 * Lower body
 		 */
+
 		context.save();
 		context.translate( this.x + this.width / 2, this.y + this.height / 2 );
 		context.rotate( Math.atan2( this.dirY, this.dirX ) );
@@ -778,6 +840,7 @@ window.Game = {};
 		/**
 		 * Upper body
 		 */
+
 		context.save();
 		context.translate( this.x + this.width / 2, this.y + this.height / 2 );
 		context.rotate( Math.atan2( this.lookingDirY, this.lookingDirX ) );

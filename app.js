@@ -64,8 +64,8 @@ window.App = {};
 	{
 		Game.init(
 		{
-			canvasWidth  : 32 * 18,
-			canvasHeight : 32 * 13,
+			width  : 32 * 18,
+			height : 32 * 13,
 		});
 
 		Game.events.addEventListener( 'gameStart' , this.gameStart );
@@ -234,7 +234,7 @@ window.App = {};
 				1,0,0,0,0,0,0,0,0,1,0,1,0,1,0,0,0,1,
 				1,0,0,1,0,0,0,1,0,1,0,0,0,1,0,1,0,1,
 				1,0,0,1,0,0,0,1,0,1,1,1,0,1,0,1,0,1,
-				1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,
+				1,0,0,0,0,0,0,0,0,0,2,0,0,1,0,0,0,1,
 				1,0,0,0,0,0,0,1,1,1,0,1,0,0,0,0,1,1,
 				1,0,0,0,0,0,0,0,1,1,0,0,0,1,0,0,0,1,
 				1,0,0,0,0,0,0,0,0,1,0,1,1,1,1,0,1,1,
@@ -248,6 +248,7 @@ window.App = {};
 			{
 				0 : { collide : false, },
 				1 : { collide : true, },
+				2 : { collide : false, cost: 99, }
 			},
 		});
 
@@ -259,7 +260,7 @@ window.App = {};
 
 		this.map.addCharacter( this.player, 1, 1 );
 
-		var amount = 100;
+		var amount = 1;
 
 		for ( var i = 0; i < amount; i++ ) 
 		{

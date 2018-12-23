@@ -1,4 +1,14 @@
 
+function getDirection( x1, y1, x2, y2 )
+{
+	var distance = Phaser.Math.Distance.Between( x1, y1, x2, y2 );
+
+	return { 
+		x : ( x2 - x1 ) / distance,
+		y : ( y2 - y1 ) / distance
+	}
+}
+
 var Sprite = new Phaser.Class(
 {
 	Extends : Phaser.Physics.Arcade.Sprite,
@@ -9,64 +19,11 @@ var Sprite = new Phaser.Class(
     {
     	Phaser.Physics.Arcade.Sprite.call( this, scene, x, y, texture, frame );
 
+    	// Setup sprite for scene
+    	this.scene = scene;
     	this.scene.add.existing( this );
     	this.scene.physics.world.enableBody( this, 0 );
-
-    	this.dirX        = 0;
-		this.dirY        = 0;
-		this.movingSpeed = 100;
-    },
-
-    move : function( dirX, dirY )
-    {
-    	this.dirX = dirX;
-    	this.dirY = dirY;
-
-    	if ( this.dirX == 0 && this.dirY == 0 ) 
-    	{
-    		this.body.setVelocity( 0 );
-    		this.anims.stop();
-
-    		return;
-    	}
-
-    	// Update sprite
-
-    	this.body.setVelocityX( this.dirX * this.movingSpeed );
-    	this.body.setVelocityY( this.dirY * this.movingSpeed );
-
-    	// Update animation
-
-    	if ( this.dirX < 0 ) 
-    	{
-    		this.anims.play( 'left', true );
-    	}
-
-    	else if ( this.dirX > 0 )
-	    {
-	        this.anims.play( 'right', true );
-	    }
-
-	    else if ( this.dirY < 0 )
-	    {
-	        this.anims.play( 'up', true );
-	    }
-
-	    else if ( this.dirY > 0 )
-	    {
-	        this.anims.play( 'down', true );
-	    }
-    },
-
-    moveTo : function( x, y )
-    {
-    	var distance = Phaser.Math.Distance.Between( this.x, this.y, x, y );
-
-    	var dirX = ( x - this.x ) / distance;
-		var dirY = ( y - this.y ) / distance;
-
-    	this.move( dirX, dirY );
-    },
+    }
 });
 
 var Agent = new Phaser.Class(
@@ -78,6 +35,185 @@ var Agent = new Phaser.Class(
     function constructor( scene, x, y, texture, frame )
     {
     	Sprite.call( this, scene, x, y, texture, frame );
+
+    	// Moving direction
+		this.dirX = 0;
+		this.dirY = 0;
+
+		// Looking direction
+		this.lookDirX = 0;
+		this.lookDirY = 0;
+
+		this.movingSpeed = 100;
+		this.health = 100;
+
+		this.target = null;
+
+		this.textureKey = texture; 
+    },
+
+    move : function( dirX, dirY, doLookingDir )
+    {
+    	this.dirX = dirX;
+    	this.dirY = dirY;
+
+    	if ( this.dirX == 0 && this.dirY == 0 ) 
+    	{
+    		this.setVelocity( 0 );
+
+    		this.anims.stop();
+
+    		return;
+    	}
+
+    	this.setVelocity( this.dirX * this.movingSpeed, this.dirY * this.movingSpeed );
+
+    	if ( doLookingDir || doLookingDir === undefined ) 
+    	{
+    		this.setLookingDirection( this.dirX, this.dirY );
+    	}
+    },
+
+    moveTo : function( x, y )
+    {
+    	var dir = getDirection( this.x, this.y, x, y );
+
+    	this.move( dir.x, dir.y );
+    },
+
+    setLookingDirection : function( dirX, dirY )
+    {
+    	this.lookDirX = dirX;
+    	this.lookDirY = dirY;
+
+    	if ( Math.round( this.lookDirX ) < 0 ) 
+    	{
+    		this.anims.play( 'left', true );
+    	}
+
+    	else if ( Math.round( this.lookDirX ) > 0 )
+	    {
+	        this.anims.play( 'right', true );
+	    }
+
+	    else if ( Math.round( this.lookDirY ) < 0 )
+	    {
+	        this.anims.play( 'up', true );
+	    }
+
+	    else if ( Math.round( this.lookDirY ) > 0 )
+	    {
+	        this.anims.play( 'down', true );
+	    }
+
+	    else
+	    {
+	    	this.anims.play( 'down', true );
+	    }
+    },
+
+    lookAt : function( x, y )
+    {
+    	var dir = getDirection( this.x, this.y, x, y );
+
+    	this.setLookingDirection( dir.x, dir.y );
+    },
+
+    follow: function( target )
+    {
+        this.target = target;
+    },
+
+    stopFollowing: function()
+    {
+        this.target = null;
+    },
+
+    shoot : function()
+    {
+    	// Get next available bullet
+    	var bullet = this.scene.bullets.get();
+
+    	// Check if exists
+    	if ( ! bullet ) 
+    	{
+    		return;
+    	}
+
+    	// Reset when already used
+		bullet.reset();
+
+    	// Shoot
+    	this.scene.sound.play( 'gunshot' );
+    	bullet.setPosition( this.x, this.y );
+    	bullet.setVelocity( this.lookDirX * bullet.movingSpeed, this.lookDirY * bullet.movingSpeed );
+    },
+
+    update: function( time, delta )
+    {
+        if ( this.target ) 
+        {
+        	this.moveTo( this.target.x, this.target.y );
+        }
+    },
+
+    reset : function()
+    {
+		this.setActive( true );
+		this.setVisible( true );
+
+		this.movingSpeed = 100;
+		this.health      = 100;
+    },
+
+    destroy : function()
+    {
+    	this.setActive( false );
+        this.setVisible( false );
+
+        this.body.stop();
+    },
+});
+
+var Bullet = new Phaser.Class(
+{
+	Extends : Sprite,
+
+    initialize :
+
+    function constructor( scene )
+    {
+    	Sprite.call( this, scene, 0, 0, 'bullet' );
+
+		this.movingSpeed = 500;
+		this.lifespan    = 1000;
+		this.damage      = 25;
+    },
+
+    reset : function()
+    {
+    	this.lifespan = 1000;
+
+		this.setActive( true);
+		this.setVisible( true );
+    },
+
+    update: function( time, delta )
+    {
+        this.lifespan -= delta;
+
+        if ( this.lifespan <= 0 )
+        {
+            this.destroy();
+        }
+    },
+
+    destroy: function()
+    {
+        this.setActive( false );
+        this.setVisible( false );
+
+        this.body.stop();
     }
 });
 
@@ -91,30 +227,62 @@ var MyScene = new Phaser.Class(
     {
     	Phaser.Scene.call( this,
     	{
-    		key : 'scene1',
+    		key    : 'scene1',
     		active : true,
     	});
+
+    	this.mouse = null;
     },
 
     preload : function()
 	{
 		this.load.image( 'tiles', 'assets/tiles.png' );
-		this.load.tilemapCSV( 'map', 'assets/tiles.csv' );
 		this.load.image( 'bullet', 'assets/bullet.png' );
+
+		this.load.tilemapCSV( 'map', 'assets/tiles.csv' );
 
 		this.load.spritesheet( 'player', 'assets/agent_1.png', 
 		{ 
 			frameWidth : 16,
 			frameHeight: 16,
 		});
+
+		this.load.spritesheet( 'enemy', 'assets/agent_2.png', 
+		{ 
+			frameWidth : 16,
+			frameHeight: 16,
+		});
+
+		this.load.audio( 'gunshot', 'assets/gunshot.mp3', 
+		{
+        	instances: 1,
+    	});
 	},
 
 	create : function()
 	{
+		/**
+		 * Keyboard
+		 */
+
 		this.cursors = this.input.keyboard.createCursorKeys();
+
+		this.cursors = this.input.keyboard.addKeys(
+		{
+			up    : Phaser.Input.Keyboard.KeyCodes.Z,
+			down  : Phaser.Input.Keyboard.KeyCodes.S,
+			left  : Phaser.Input.Keyboard.KeyCodes.Q,
+			right : Phaser.Input.Keyboard.KeyCodes.D
+		});
+
+		/**
+		 * Sounds
+		 */
+
+		this.sound.add( 'gunshot' );
 		
 		/**
-		 * Setup Map
+		 * Map
 		 */
 
 		this.map = this.make.tilemap( 
@@ -131,8 +299,12 @@ var MyScene = new Phaser.Class(
 
 		this.layer = this.map.createStaticLayer( 0, this.tileset, 0, 0 );
 
+		
+
 		/**
-		 * Setup Animations
+		 * Animations
+		 *
+		 * TODO : belongs to agent
 		 */
 
 	    this.anims.create(
@@ -171,9 +343,50 @@ var MyScene = new Phaser.Class(
 		 * Player
 		 */
 
-		this.player = new Agent( this, 16 * 1, 16 * 1, 'player' );
+		this.player = new Agent( this, 32 * 1, 32 * 1, 'player' );
+
+		this.input.on( 'pointerdown', function()
+		{
+			this.player.shoot();
+		}, this );
+
+		/**
+		 * Enemies
+		 */
+
+		this.enemies = this.physics.add.group(
+		{
+	        classType      : Agent,
+	        maxSize        : 1000,
+	        runChildUpdate : true,
+    	});
+
+    	for ( var i = 0; i < 10; i++ )
+	    {
+	        this.placeEnemy();
+	    }
+
+		/**
+		 * Bullets
+		 */
+
+		this.bullets = this.physics.add.group(
+		{
+	        classType      : Bullet,
+	        maxSize        : 100,
+	        runChildUpdate : true,
+    	});
+
+    	/**
+		 * Collision detection
+		 */
 
 		this.physics.add.collider( this.player, this.layer );
+		this.physics.add.collider( this.player, this.enemies );
+		this.physics.add.collider( this.enemies, this.layer );
+		this.physics.add.collider( this.enemies, this.enemies );
+
+    	this.physics.add.overlap( this.bullets, this.enemies, this.hitEnemy, this.checkBulletVsEnemy, this );
 
 		/**
 		 * Setup Camera
@@ -189,16 +402,65 @@ var MyScene = new Phaser.Class(
 		 * Setup Keys
 		 */
 
-		this.cursors = this.input.keyboard.addKeys(
+		
+
+		var _this = this;
+
+		document.addEventListener( 'mousemove', function( event )
 		{
-			up    : Phaser.Input.Keyboard.KeyCodes.Z,
-			down  : Phaser.Input.Keyboard.KeyCodes.S,
-			left  : Phaser.Input.Keyboard.KeyCodes.Q,
-			right : Phaser.Input.Keyboard.KeyCodes.D
+			_this.mouse = new Phaser.Geom.Point( event.layerX, event.layerY );
 		});
 	},
 
-	update()
+	checkBulletVsEnemy : function( bullet, enemy )
+	{
+	    return ( bullet.active && enemy.active );
+	},
+
+	hitEnemy : function( bullet, enemy )
+	{
+		var pushBackDistance = 5;
+
+		// Push back effect
+		var dir = getDirection( bullet.x, bullet.y, enemy.x, enemy.y );
+		enemy.setPosition( enemy.x + pushBackDistance * dir.x, enemy.y + pushBackDistance * dir.y );
+
+		// decrease health
+		enemy.health -= bullet.damage;
+
+		// TODO : decrease moving speed
+
+		if ( enemy.health <= 0 ) 
+		{
+			enemy.destroy();
+		}
+
+	    bullet.destroy();
+	},
+
+	placeEnemy : function()
+	{
+		var enemy = this.enemies.get();
+
+		if ( ! enemy ) 
+        {
+        	return;
+        }
+
+        var field    = new Phaser.Geom.Rectangle( 0, 0, this.layer.width, this.layer.height );
+		var position = new Phaser.Math.Vector2();
+		
+		field.getRandomPoint( position );
+
+        enemy.reset();
+        enemy.movingSpeed = 10;
+        enemy.setTexture( 'enemy', 0 );
+        enemy.setSize( 16, 16 );
+       	enemy.setPosition( position.x, position.y );
+       	enemy.follow( this.player );
+	},
+
+	update : function()
 	{
 		/**
 		 * Player movement
@@ -226,7 +488,12 @@ var MyScene = new Phaser.Class(
 	        dirY = 1;
 	    }
 
-	    this.player.move( dirX, dirY );
+	    this.player.move( dirX, dirY, false );
+
+	    if ( this.mouse ) 
+	    {
+	    	this.player.lookAt( this.mouse.x + this.cameras.main.scrollX, this.mouse.y + this.cameras.main.scrollY );
+	    }
 
 	    /**
 		 * Camera
@@ -253,5 +520,9 @@ let game = new Phaser.Game(
             debug: false,
         }
     },
+    plugins: 
+    {
+		scene: [ { key: "NavMeshPlugin", plugin: PhaserNavMeshPlugin, mapping: "navMeshPlugin", start: true } ],
+  	},
 	scene : [ MyScene ],
 });

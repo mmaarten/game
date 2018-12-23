@@ -1,18 +1,14 @@
+
 html, body
 {
 	margin: 0;
 	height: 100%;
 }
 
-.game
+body
 {
 	display: flex;
-	align-items: center;
 	justify-content: center;
+	align-items: center;
 	background-color: black;
-}
-
-.game canvas
-{
-	background-color: white;
 }

@@ -339,6 +339,14 @@ var MyScene = new Phaser.Class(
 	        repeat    : -1,
 	    });
 
+	    this.anims.create(
+	    {
+	        key       : 'dead',
+	        frames    : this.anims.generateFrameNumbers( 'player', { start: 12, end: 12 } ),
+	        frameRate : 20,
+	        repeat    : -1,
+	    });
+
 		/**
 		 * Player
 		 */

@@ -299,8 +299,6 @@ var MyScene = new Phaser.Class(
 
 		this.layer = this.map.createStaticLayer( 0, this.tileset, 0, 0 );
 
-		
-
 		/**
 		 * Animations
 		 *

@@ -21,7 +21,6 @@ var Firearm = new Phaser.Class(
             useSound       : null,
             reloadSound    : null,
             emptySound     : null,
-            bulletTexture  : null,
             bullets        : scene.physics.add.group(),
         };
 
@@ -36,7 +35,6 @@ var Firearm = new Phaser.Class(
         this.emptySound    = config.emptySound;
         this.rounds        = config.rounds;
         this.reloadTime    = config.reloadTime;
-        this.bulletTexture = config.bulletTexture;
         this.deviation     = config.deviation;
         this.recoil        = config.recoil;
         this.bullets       = config.bullets;
@@ -55,8 +53,6 @@ var Firearm = new Phaser.Class(
             return;
         }
 
-        console.log( 'reloading' )
-       
         this.isReloading = true;
 
         // Make sure previous timeout is destroyed
@@ -156,7 +152,6 @@ var Firearm = new Phaser.Class(
         // Fire bullet
         
         bullet.reset();
-        bullet.setTexture( this.bulletTexture );
         bullet.setPosition( agent.x, agent.y );
 
         var deviationX = Phaser.Math.Between( - this.deviation, this.deviation );

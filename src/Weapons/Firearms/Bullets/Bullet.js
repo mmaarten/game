@@ -9,7 +9,7 @@ var Bullet = new Phaser.Class(
 
     function constructor( scene, x, y, texture, frame )
     {
-    	Sprite.call( this, scene, 0, 0, 'bullets.bullet' );
+    	Sprite.call( this, scene, 0, 0, 'bullets.default' );
 
         this.setSize( 10, 10 );
         this.lifespan = 2000;

@@ -43,6 +43,11 @@ var Agent = new Phaser.Class(
         this.weapon = this.weapons[ key ];
     },
 
+    unsetWeapon : function( key )
+    {
+        this.weapon = null;
+    },
+
     useWeapon : function( mode )
     {
         if ( ! this.weapon ) 
@@ -84,27 +89,27 @@ var Agent = new Phaser.Class(
 
         if ( Math.round( this.lookDir.x ) < 0 ) 
         {
-            this.anims.play( this.texture.key + '.left', this.isMoving() );
+            this.play( this.texture.key + '.left', this.isMoving() );
         }
 
         else if ( Math.round( this.lookDir.x ) > 0 ) 
         {
-            this.anims.play( this.texture.key + '.right', this.isMoving() );
+            this.play( this.texture.key + '.right', this.isMoving() );
         }
 
         else if ( Math.round( this.lookDir.y ) < 0 ) 
         {
-            this.anims.play( this.texture.key + '.up', this.isMoving() );
+            this.play( this.texture.key + '.up', this.isMoving() );
         }
 
         else if ( Math.round( this.lookDir.y ) > 0 ) 
         {
-            this.anims.play( this.texture.key + '.down', this.isMoving() );
+            this.play( this.texture.key + '.down', this.isMoving() );
         }
 
         else
         {
-            this.anims.play( this.texture.key + '.down', this.isMoving() );
+            this.play( this.texture.key + '.down', this.isMoving() );
         }
     },
 
@@ -145,7 +150,7 @@ var Agent = new Phaser.Class(
         }
     },
 
-     destroy : function()
+    destroy : function()
     {
         this.setActive( false );
         this.setVisible( false );

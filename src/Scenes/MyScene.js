@@ -226,7 +226,6 @@ var MyScene = new Phaser.Class(
 	            useSound       : 'gun_shot',
 	            reloadSound    : 'gun_reload',
 	            emptySound     : 'gun_empty',
-	            bulletTexture  : 'bullets.default',
 	            bullets        : this.bullets,
 			},
 
@@ -241,7 +240,6 @@ var MyScene = new Phaser.Class(
 	            useSound       : 'uzi_shot',
 	            reloadSound    : 'gun_reload',
 	            emptySound     : 'gun_empty',
-	            bulletTexture  : 'bullets.default',
 	            bullets        : this.bullets,
 			},
 		};

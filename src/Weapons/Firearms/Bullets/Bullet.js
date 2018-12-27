@@ -11,7 +11,6 @@ var Bullet = new Phaser.Class(
     {
     	Sprite.call( this, scene, 0, 0, 'bullets.default' );
 
-        this.setSize( 10, 10 );
         this.lifespan = 2000;
         this.damage = 25;
     },

@@ -22,8 +22,6 @@ var MyScene = new Phaser.Class(
     preload : function()
 	{
 		// Map
-
-		this.load.tilemapCSV( 'map', 'assets/map/tiles.csv' );
 		this.load.image( 'tiles', 'assets/map/tiles.png' );
 
 		// Agents
@@ -74,11 +72,6 @@ var MyScene = new Phaser.Class(
     	});
 	},
 
-	load : function()
-	{
-		console.log( 'load' )
-	},
-
 	create : function()
 	{
 		/**
@@ -115,17 +108,26 @@ var MyScene = new Phaser.Class(
 
 		this.map = this.make.tilemap( 
 		{ 
-			key        : 'map', 
-			tileWidth  : 32, 
+			data : 
+			[
+				[ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ],
+				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
+				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
+				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
+				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
+				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
+				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
+				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
+				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
+				[ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ],
+			], 
+			tileWidth  : 32,
 			tileHeight : 32,
 		});
 
-		this.map.setCollisionBetween( 1, 80 );
-
-		this.tileset = this.map.addTilesetImage( 'tiles', null, 32, 32, 0, 1 );
-		this.tileset.setSpacing( 1 );
-
-		this.layer = this.map.createStaticLayer( 0, this.tileset, 0, 0 );
+		//this.map.setCollisionBetween( 1, 80 );
+		this.tiles = this.map.addTilesetImage( 'tiles' );
+		this.layer = this.map.createStaticLayer( 0, this.tiles, 0, 0 );
 
 		/**
 		 * Bullets
@@ -141,6 +143,39 @@ var MyScene = new Phaser.Class(
 	    /**
 		 * Agents
 		 */
+
+		this.agents = 
+		{
+			agent_1 : 
+			{
+				texture     : 'agents.agent_1',
+				movingSpeed : 100,
+	            health      : 500,
+	            animKeys : 
+	            {
+	                left  : 'agents.agent_1.left',
+	                right : 'agents.agent_1.right',
+	                up    : 'agents.agent_1.up',
+	                down  : 'agents.agent_1.down',
+	                dead  : 'agents.agent_1.dead',
+	            },
+			},
+
+			agent_2 : 
+			{
+				texture     : 'agents.agent_2',
+				movingSpeed : 100,
+	            health      : 100,
+	            animKeys : 
+	            {
+	                left  : 'agents.agent_2.left',
+	                right : 'agents.agent_2.right',
+	                up    : 'agents.agent_2.up',
+	                down  : 'agents.agent_2.down',
+	                dead  : 'agents.agent_2.dead',
+	            },
+			},
+		};
 
 		// Create animations
 
@@ -181,36 +216,59 @@ var MyScene = new Phaser.Class(
 		        frameRate : 20,
 		        repeat    : -1
 			});
+
+			this.anims.create( 
+			{
+				key       : texture + '.dead',
+				frames    : this.anims.generateFrameNumbers( texture, { start: 12, end: 12 } ),
+		        frameRate : 20,
+		        repeat    : -1
+			});
 		};
 
 		// Create agents
 
-		this.player = new Agents.Agent( this, 32 * 1, 32 * 1, 'agents.agent_1' );
+		this.player = new Agents.Agent( this, this.agents.agent_1 );
+		this.player.setPosition( 32 * 2, 32 * 2 );
 
-		this.enemies = this.physics.add.group();
+		// this.enemies = this.physics.add.group();
 
-		for ( var i = 0; i < 1000; i++ )
-		{
-			var enemy = new Agents.Agent( this, 32 * i, 32 * i, 'agents.agent_2' );
+		// var cols = 19, x = 0, y = 0, spacing = 32; 
 
-			this.enemies.add( enemy );
-		}
+		// for ( var i = 0; i < 100; i++ )
+		// {
+		// 	if ( i % cols === 0 ) 
+		// 	{
+		// 		x = spacing;
+		// 		y += spacing;
+		// 	}
+
+		// 	else
+		// 	{
+		// 		x += spacing;
+		// 	}
+
+		// 	var enemy = new Agents.Agent( this, this.agents.agent_2 );
+		// 	enemy.setPosition( x, y );
+
+		// 	this.enemies.add( enemy );
+		// }
 
 		/**
 		 * Colliders
 		 */
 
-		this.physics.add.collider( this.player , this.layer );
-		this.physics.add.collider( this.enemies, this.layer );
-		this.physics.add.collider( this.bullets, this.layer );
-		this.physics.add.collider( this.player , this.enemies );
-		this.physics.add.collider( this.enemies, this.enemies );
+		// this.physics.add.collider( this.player , this.layer );
+		// this.physics.add.collider( this.enemies, this.layer );
+		// this.physics.add.collider( this.bullets, this.layer );
+		// this.physics.add.collider( this.player , this.enemies );
+		// this.physics.add.collider( this.enemies, this.enemies );
 
 		/**
 		 * Collision detection
 		 */
 
-		this.physics.add.overlap( this.bullets, this.enemies, this.hitEnemy, this.checkBulletVsEnemy, this );
+		// this.physics.add.overlap( this.bullets, this.enemies, this.hitEnemy, this.checkBulletVsEnemy, this );
 
 		/**
 		 * Weapons
@@ -268,14 +326,11 @@ var MyScene = new Phaser.Class(
 		}, this );
 
 		/**
-		 * Setup Camera
+		 * Camera
 		 */
 
     	this.cameras.main.setBounds( 0, 0, this.layer.width * this.layer.scaleX, this.layer.height * this.layer.scaleY );
-    	
-    	// Fix: Follow point instead of player (lines are visible)
-    	this.cameraTarget = new Phaser.Geom.Point( this.player.x, this.player.y );
-		this.cameras.main.startFollow( this.cameraTarget );
+		this.cameras.main.startFollow( this.player );
 	},
 
 	checkBulletVsEnemy : function( bullet, enemy )
@@ -300,7 +355,7 @@ var MyScene = new Phaser.Class(
 
 		if ( enemy.health <= 0 ) 
 		{
-			enemy.destroy();
+			enemy.die();
 		}
 
 	    bullet.destroy();
@@ -353,14 +408,6 @@ var MyScene = new Phaser.Class(
 	    {
 	    	this.player.useWeapon();
 	    }
-
-	    /**
-		 * Camera
-		 */
-
-	    // Update camera position
-	    this.cameraTarget.x = Math.floor( this.player.x );
-	    this.cameraTarget.y = Math.floor( this.player.y );
 	},
 });
 

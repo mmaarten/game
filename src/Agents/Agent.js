@@ -7,17 +7,29 @@ var Agent = new Phaser.Class(
 
     initialize :
 
-    function constructor( scene, x, y, texture, frame, config )
+    function constructor( scene, config )
     {
         var defaults = 
         {
+            x           : undefined,
+            y           : undefined,
+            texture     : undefined,
+            frame       : undefined,
             movingSpeed : 100,
             health      : 100,
+            animKeys    : 
+            {
+                left  : '',
+                right : '',
+                up    : '',
+                down  : '',
+                dead  : '',
+            },
         };
 
         this.config = Object.assign( {}, defaults, config );
 
-    	Sprite.call( this, scene, x, y, texture, frame );
+    	Sprite.call( this, scene, config.x, config.y, config.texture, config.frame );
 
         this.movingSpeed = this.config.movingSpeed;
         this.health      = this.config.health;
@@ -26,6 +38,8 @@ var Agent = new Phaser.Class(
         this.weapons     = {};
         this.weapon      = null;
         this.target      = null;
+
+        this.animKeys = Object.assign( {}, defaults.animKeys, this.config.animKeys );
     },
 
     addWeapon : function( key, weapon )
@@ -89,27 +103,27 @@ var Agent = new Phaser.Class(
 
         if ( Math.round( this.lookDir.x ) < 0 ) 
         {
-            this.play( this.texture.key + '.left', this.isMoving() );
+            this.play( this.animKeys.left, this.isMoving() );
         }
 
         else if ( Math.round( this.lookDir.x ) > 0 ) 
         {
-            this.play( this.texture.key + '.right', this.isMoving() );
+            this.play( this.animKeys.right, this.isMoving() );
         }
 
         else if ( Math.round( this.lookDir.y ) < 0 ) 
         {
-            this.play( this.texture.key + '.up', this.isMoving() );
+            this.play( this.animKeys.up, this.isMoving() );
         }
 
         else if ( Math.round( this.lookDir.y ) > 0 ) 
         {
-            this.play( this.texture.key + '.down', this.isMoving() );
+            this.play( this.animKeys.down, this.isMoving() );
         }
 
         else
         {
-            this.play( this.texture.key + '.down', this.isMoving() );
+            this.play( this.animKeys.down, this.isMoving() );
         }
     },
 
@@ -123,31 +137,28 @@ var Agent = new Phaser.Class(
         this.look( dirX, dirY );
     },
 
-    follow: function( target )
-    {
-        this.target = target;
-    },
-
-    stopFollowing: function()
-    {
-        this.target = null;
-    },
-
     reset : function()
     {
         this.setActive( true );
         this.setVisible( true );
 
+        this.play( this.animKeys.down );
+        
         this.movingSpeed = this.config.movingSpeed;
         this.health      = this.config.health;
     },
 
     update: function( time, delta )
     {
-        if ( this.target ) 
-        {
-            this.moveTo( this.target.x, this.target.y );
-        }
+        
+    },
+
+    die : function()
+    {
+        this.play( this.animKeys.dead );
+
+        this.setActive( false );
+        this.body.stop();
     },
 
     destroy : function()

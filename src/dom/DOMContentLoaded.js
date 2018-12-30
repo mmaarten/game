@@ -10,7 +10,7 @@ function DOMContentLoaded( callback, context )
 
 	document.addEventListener( 'DOMContentLoaded', function()
 	{
-		callback.call( context )
+		callback.call( context );
 	});
 }
 

@@ -13,13 +13,12 @@ class Sprite
 
 		config = Object.assign( {}, defaults, config );
 
-		this.scene   = scene;
-		this.texture = texture;
-		this.sheet   = this.scene.loader.get( this.texture );
-		this.width   = this.sheet.data.frameWidth;
-		this.height  = this.sheet.data.frameHeight;
-		this.anims   = new Animation();
-
+		this.scene    = scene;
+		this.texture  = texture;
+		this.sheet    = this.scene.loader.get( this.texture );
+		this.width    = this.sheet.data.frameWidth;
+		this.height   = this.sheet.data.frameHeight;
+		this.anims    = new Animation();
 		this.position = new Vector2( x, y );
 		this.velocity = new Vector2();
 
@@ -27,6 +26,8 @@ class Sprite
 		{
 			this.anims.create( config.anims[ i ] );
 		}
+
+		this.scene.addSprite( this );
 	}
 
 	setPosition( x, y )
@@ -97,8 +98,6 @@ class Sprite
 			context.strokeRect( - this.width / 2, - this.height / 2, this.width, this.height );
 			context.restore();
 		}
-
-		
 	}
 }
 

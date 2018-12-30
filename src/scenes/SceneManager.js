@@ -11,6 +11,7 @@ class SceneManager
 		this.game   = game;
 		this.scenes = {};
 		this.scene = null; // active scene
+		this.defaultScene = null;
 
 		this.game.events.on( 'init' , this.gameInit, this );
 		this.game.events.on( 'ready', this.gameReady, this );
@@ -27,31 +28,18 @@ class SceneManager
 		return scene;
 	}
 
-	gameInit()
+	setScene( id )
 	{
-		// add scenes
-		for ( var i in this.config.scenes )
+		// Destroy current
+
+		if ( this.scene ) 
 		{
-			this.add( this.config.scenes[ i ] );
+			this.scene.destroy();
 		}
 
-		for ( var i in this.scenes )
-		{
-			var scene = this.scenes[ i ];
+		// Init requested
 
-			if ( scene.isDefault ) 
-			{
-				this.scene = scene;
-			}
-		}
-	}
-
-	gameReady()
-	{
-		if ( ! this.scene ) 
-		{
-			return;
-		}
+		this.scene = this.scenes[ id ];
 
 		this.scene.init( this.game );
 
@@ -64,24 +52,48 @@ class SceneManager
 		this.scene.loader.start();
 	}
 
-	gameUpdate()
+	gameInit()
 	{
-		if ( ! this.scene ) 
+		// Add scenes
+		for ( var i in this.config.scenes )
 		{
-			return;
+			this.add( this.config.scenes[ i ] );
 		}
 
-		this.scene.update( this.game.timeElapsed, this.game.timeDelta );
+		// Get default scene
+		for ( var i in this.scenes )
+		{
+			var scene = this.scenes[ i ];
+
+			if ( scene.isDefault ) 
+			{
+				this.defaultScene = scene.id;
+			}
+		}
+	}
+
+	gameReady()
+	{
+		if ( this.defaultScene ) 
+		{
+			this.setScene( this.defaultScene );
+		}
+	}
+
+	gameUpdate( time, delta )
+	{
+		if ( this.scene ) 
+		{
+			this.scene.update( time, delta );
+		}
 	}
 
 	gameRender()
 	{
-		if ( ! this.scene ) 
+		if ( this.scene ) 
 		{
-			return;
+			this.scene.render();
 		}
-
-		this.scene.render();
 	}
 }
 

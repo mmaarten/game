@@ -7,14 +7,20 @@ class Agent extends Sprite
 {
 	constructor( scene, x, y, texture, config )
 	{
+		var defaults = 
+		{
+			movingSpeed : 100,
+		};
+
+		config = Object.assign( {}, defaults, config );
+
 		super( scene, x, y, texture, config );
 
+		this.movingSpeed = config.movingSpeed;
 		this.moveDir     = new Geom.Vector2();
 		this.lookDir     = new Geom.Vector2();
-		this.movingSpeed = 100;
-
-		this.path      = [];
-		this.pathIndex = -1;
+		this.path        = [];
+		this.pathIndex   = -1;
 	}
 
 	move( dirX, dirY )
@@ -38,22 +44,22 @@ class Agent extends Sprite
 	{
 		this.lookDir.set( dirX, dirY );
 
-		if ( Math.floor( this.lookDir.x ) < 0 ) 
+		if ( Math.round( this.lookDir.x ) < 0 ) 
 		{
 			this.anims.play( 'left', this.isMoving() );
 		}
 
-		else if ( Math.floor( this.lookDir.x ) > 0 ) 
+		else if ( Math.round( this.lookDir.x ) > 0 ) 
 		{
 			this.anims.play( 'right', this.isMoving() );
 		}
 
-		else if ( Math.floor( this.lookDir.y ) < 0 ) 
+		else if ( Math.round( this.lookDir.y ) < 0 ) 
 		{
 			this.anims.play( 'up', this.isMoving() );
 		}
 
-		else if ( Math.floor( this.lookDir.y ) > 0 ) 
+		else if ( Math.round( this.lookDir.y ) > 0 ) 
 		{
 			this.anims.play( 'down', this.isMoving() );
 		}
@@ -84,6 +90,8 @@ class Agent extends Sprite
 	{
 		super.update( time, delta );
 
+		//
+
 		var movingSpeed = ( this.movingSpeed / 1000 ) * delta;
 
 		var target;
@@ -94,7 +102,7 @@ class Agent extends Sprite
 		{
 			var target = this.path[ this.pathIndex ];
 
-			var distance = target.distance( this.position.x, this.position.y );
+			var distance = target.distance( this.position );
 
 			if ( distance < movingSpeed ) 
 			{
@@ -107,9 +115,6 @@ class Agent extends Sprite
 
 				else
 				{
-					//this.position.x = target.x;
-					//this.position.y = target.y;
-
 					target = null;
 					this.setVelocity( 0, 0 );
 					this.path = [];
@@ -140,7 +145,7 @@ class Agent extends Sprite
 				var node = this.path[ i ];
 				var next = this.path[ i + 1 ];
 
-				// node
+				// Node
 				context.save();
 				context.translate( node.x, node.y );
 				context.beginPath();
@@ -150,7 +155,7 @@ class Agent extends Sprite
 				context.closePath();
 				context.restore();
 
-				// direction
+				// Direction
 				if ( next ) 
 				{
 					context.save();

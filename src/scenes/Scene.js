@@ -19,6 +19,7 @@ class Scene
 		this.game      = null;
 		this.loader    = null;
 		this.keyboard  = null;
+		this.sprites   = [];
 	}
 
 	init( game )
@@ -26,6 +27,11 @@ class Scene
 		this.game     = game;
 		this.loader   = new Loader();
 		this.keyboard = new Keyboard();
+	}
+
+	addSprite( sprite )
+	{
+		this.sprites.push( sprite );
 	}
 
 	preload()
@@ -38,14 +44,26 @@ class Scene
 		
 	}
 
-	update()
+	update( time, delta )
 	{
+		// Sprites
+		for ( var i in this.sprites )
+		{
+			var sprite = this.sprites[ i ];
 		
+			sprite.update( time, delta );
+		}
 	}
 
 	render()
 	{
+		// Sprites
+		for ( var i in this.sprites )
+		{
+			var sprite = this.sprites[ i ];
 		
+			sprite.render();
+		}
 	}
 
 	destroy()

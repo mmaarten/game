@@ -15,8 +15,20 @@ class Vector2
 
 	distance( x, y )
 	{
-		var x = this.x - x;
-		var y = this.y - y;
+		var target;
+		
+		if ( y !== undefined )
+		{
+			target = new Vector2( x, y );
+		}
+
+		else
+		{
+			target = x;
+		}
+
+		var x = this.x - target.x;
+		var y = this.y - target.y;
 
 		return Math.sqrt( x * x + y * y );
 	}

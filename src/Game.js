@@ -65,15 +65,18 @@ class Game
 
 	update()
 	{
+		// Time
 		var prevUpdate = this.timeElapsed;
 
 		this.timeElapsed = new Date().getTime() - this.time;
 		this.timeDelta   = this.timeElapsed - prevUpdate;
 
+		// Clear canvas
 		var context = this.canvas.getContext( '2d' );
 		context.clearRect( 0, 0, this.canvas.width, this.canvas.height );
 
-		this.events.trigger( 'update' );
+		// Notify
+		this.events.trigger( 'update', [ this.timeElapsed, this.timeDelta ] );
 		this.events.trigger( 'render' );
 	}
 }

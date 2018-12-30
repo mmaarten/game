@@ -1,5 +1,5 @@
 
-var Sprite = require( './../Sprite' );
+var Sprite = require( './Sprite' );
 
 var Agent = new Phaser.Class(
 {
@@ -13,17 +13,17 @@ var Agent = new Phaser.Class(
         {
             x           : undefined,
             y           : undefined,
-            texture     : undefined,
+            texture     : undefined, // required
             frame       : undefined,
             movingSpeed : 100,
             health      : 100,
             animKeys    : 
             {
-                left  : '',
-                right : '',
-                up    : '',
-                down  : '',
-                dead  : '',
+                left  : '', // required
+                right : '', // required
+                up    : '', // required
+                down  : '', // required
+                dead  : '', // required
             },
         };
 
@@ -33,13 +33,12 @@ var Agent = new Phaser.Class(
 
         this.movingSpeed = this.config.movingSpeed;
         this.health      = this.config.health;
+        this.animKeys    = Object.assign( {}, defaults.animKeys, this.config.animKeys );
         this.moveDir     = new Phaser.Math.Vector2();
         this.lookDir     = new Phaser.Math.Vector2();
         this.weapons     = {};
         this.weapon      = null;
         this.target      = null;
-
-        this.animKeys = Object.assign( {}, defaults.animKeys, this.config.animKeys );
     },
 
     addWeapon : function( key, weapon )
@@ -137,6 +136,16 @@ var Agent = new Phaser.Class(
         this.look( dirX, dirY );
     },
 
+    follow : function( target )
+    {
+        this.target = target;
+    },
+
+    unfollow : function()
+    {
+        this.target = null;
+    },
+
     reset : function()
     {
         this.setActive( true );
@@ -150,13 +159,17 @@ var Agent = new Phaser.Class(
 
     update: function( time, delta )
     {
-        
+        if ( this.target ) 
+        {
+            this.moveTo( this.target.x, this.target.y );
+        }
     },
 
     die : function()
     {
         this.play( this.animKeys.dead );
 
+        this.setVelocity( 0 );
         this.setActive( false );
         this.body.stop();
     },

@@ -1,18 +1,16 @@
 
-var Scene   = require( './Scene' );
-var Utils   = require( './../Utils' );
-var Agents  = require( './../Agents' );
-var Weapons = require( './../Weapons' );
+var GameObjects = require( './../gameobjects' );
+var Utils = require( './../utils' );
 
 var MyScene = new Phaser.Class(
 {
-    Extends : Scene,
+    Extends : Phaser.Scene,
 
     initialize :
 
     function constructor()
     {
-    	Scene.call( this,
+    	Phaser.Scene.call( this,
     	{
     		key    : 'myScene',
     		active : true,
@@ -22,7 +20,8 @@ var MyScene = new Phaser.Class(
     preload : function()
 	{
 		// Map
-		this.load.image( 'tiles', 'assets/map/tiles.png' );
+		this.load.image( 'tiles', 'assets/tmw_desert_spacing.png' );
+		this.load.tilemapCSV( 'map', 'assets/map.csv' );
 
 		// Agents
 
@@ -106,28 +105,13 @@ var MyScene = new Phaser.Class(
 		 * Map
 		 */
 
-		this.map = this.make.tilemap( 
-		{ 
-			data : 
-			[
-				[ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ],
-				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
-				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
-				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
-				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
-				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
-				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
-				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
-				[ 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 ],
-				[ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ],
-			], 
-			tileWidth  : 32,
-			tileHeight : 32,
-		});
-
-		//this.map.setCollisionBetween( 1, 80 );
-		this.tiles = this.map.addTilesetImage( 'tiles' );
-		this.layer = this.map.createStaticLayer( 0, this.tiles, 0, 0 );
+		this.map     = this.make.tilemap( { key: 'map', tileWidth: 32, tileHeight: 32 } );
+		this.tileset = this.map.addTilesetImage( 'tiles', 'tiles', 32, 32, 1, 1 );
+		this.layer   = this.map.createStaticLayer( 0, this.tileset, 0, 0 ); // layer index, tileset, x, y
+		this.layer.setCollision( [ 37, 31 ], true );
+		
+		// Any tile with the collides property set to true (in Tiled) will be set to collide
+    	// this.layer.setCollisionByProperty({ collides: true });
 
 		/**
 		 * Bullets
@@ -135,7 +119,7 @@ var MyScene = new Phaser.Class(
 
 		this.bullets = this.physics.add.group(
 		{
-	        classType      : Weapons.Firearms.Bullets.Bullet,
+	        classType      : GameObjects.Bullet,
 	        maxSize        : 1000,
 	        runChildUpdate : true,
     	});
@@ -164,7 +148,7 @@ var MyScene = new Phaser.Class(
 			agent_2 : 
 			{
 				texture     : 'agents.agent_2',
-				movingSpeed : 100,
+				movingSpeed : 75,
 	            health      : 100,
 	            animKeys : 
 	            {
@@ -228,47 +212,49 @@ var MyScene = new Phaser.Class(
 
 		// Create agents
 
-		this.player = new Agents.Agent( this, this.agents.agent_1 );
-		this.player.setPosition( 32 * 2, 32 * 2 );
+		this.player = new GameObjects.Agent( this, this.agents.agent_1 );
+		this.player.setPosition( 32 * 5, 32 * 10 );
+		//this.player.setCollideWorldBounds( true );
 
-		// this.enemies = this.physics.add.group();
+		this.enemies = this.physics.add.group();
 
-		// var cols = 19, x = 0, y = 0, spacing = 32; 
+		var cols = 19, x = 0, y = 0, spacing = 32; 
 
-		// for ( var i = 0; i < 100; i++ )
-		// {
-		// 	if ( i % cols === 0 ) 
-		// 	{
-		// 		x = spacing;
-		// 		y += spacing;
-		// 	}
+		for ( var i = 0; i < 100; i++ )
+		{
+			if ( i % cols === 0 ) 
+			{
+				x = spacing;
+				y += spacing;
+			}
 
-		// 	else
-		// 	{
-		// 		x += spacing;
-		// 	}
+			else
+			{
+				x += spacing;
+			}
 
-		// 	var enemy = new Agents.Agent( this, this.agents.agent_2 );
-		// 	enemy.setPosition( x, y );
+			var enemy = new GameObjects.Agent( this, this.agents.agent_2 );
+			enemy.setPosition( x, y );
+			enemy.follow( this.player );
 
-		// 	this.enemies.add( enemy );
-		// }
+			this.enemies.add( enemy );
+		}
 
 		/**
 		 * Colliders
 		 */
 
-		// this.physics.add.collider( this.player , this.layer );
-		// this.physics.add.collider( this.enemies, this.layer );
-		// this.physics.add.collider( this.bullets, this.layer );
-		// this.physics.add.collider( this.player , this.enemies );
-		// this.physics.add.collider( this.enemies, this.enemies );
+		this.physics.add.collider( this.player , this.layer );
+		this.physics.add.collider( this.enemies, this.layer );
+		//this.physics.add.collider( this.bullets, this.layer );
+		this.physics.add.collider( this.player , this.enemies );
+		this.physics.add.collider( this.enemies, this.enemies );
 
 		/**
 		 * Collision detection
 		 */
 
-		// this.physics.add.overlap( this.bullets, this.enemies, this.hitEnemy, this.checkBulletVsEnemy, this );
+		this.physics.add.overlap( this.bullets, this.enemies, this.hitEnemy, this.checkBulletVsEnemy, this );
 
 		/**
 		 * Weapons
@@ -289,7 +275,7 @@ var MyScene = new Phaser.Class(
 
 			uzi : 
 			{
-	            useInterval    : 100, // ms
+	            useInterval    : 50, // ms
 	            useSound       : 'gun_shot',
 	            reloadSound    : 'gun_reload',
 	            emptySound     : 'gun_empty',
@@ -302,8 +288,8 @@ var MyScene = new Phaser.Class(
 			},
 		};
 
-		this.player.addWeapon( 1, new Weapons.Firearms.Firearm( this, this.weapons.pistol ) );
-		this.player.addWeapon( 2, new Weapons.Firearms.Firearm( this, this.weapons.uzi ) );
+		this.player.addWeapon( 1, new GameObjects.Firearm( this, this.weapons.pistol ) );
+		this.player.addWeapon( 2, new GameObjects.Firearm( this, this.weapons.uzi ) );
 		this.player.setWeapon( 1 );
 
 		this.input.keyboard.on( 'keydown', function( event )
@@ -329,8 +315,14 @@ var MyScene = new Phaser.Class(
 		 * Camera
 		 */
 
-    	this.cameras.main.setBounds( 0, 0, this.layer.width * this.layer.scaleX, this.layer.height * this.layer.scaleY );
-		this.cameras.main.startFollow( this.player );
+		this.cameras.main.setBounds( 0, 0, this.map.widthInPixels, this.map.heightInPixels );
+    	this.cameras.main.startFollow( this.player );
+
+    	var help = this.add.text(16, 16, 'ZQSD keys to move.', 
+    	{
+	        fontSize: '18px',
+	        fill: '#ffffff'
+    	});
 	},
 
 	checkBulletVsEnemy : function( bullet, enemy )
@@ -363,6 +355,11 @@ var MyScene = new Phaser.Class(
 
 	update : function( time, delta )
 	{
+		this.enemies.children.iterate( function( enemy )
+		{
+			enemy.update( time, delta )
+		}, this );
+
 		/**
 		 * Player
 		 */

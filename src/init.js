@@ -1,12 +1,10 @@
 
-require( './Plugins/UpdatePlugin' );
-
 let game = new Phaser.Game(
 {
     type   : Phaser.AUTO,
     width  : 650,
     height : 650 / 800 * 600,
-    roundPixels: false,
+    roundPixels: true,
     physics: 
     {
         default: 'arcade',
@@ -17,8 +15,4 @@ let game = new Phaser.Game(
         }
     },
     scene : [ App.Scenes.MyScene ],
-    plugins: 
-    {
-        scene: [{ key: 'updatePlugin', plugin: Phaser.Plugins.UpdatePlugin, mapping: 'updates' }]
-    }
 });

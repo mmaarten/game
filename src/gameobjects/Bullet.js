@@ -1,5 +1,5 @@
 
-var Sprite = require( './../../../Sprite' );
+var Sprite = require( './Sprite' );
 
 var Bullet = new Phaser.Class(
 {
@@ -12,7 +12,7 @@ var Bullet = new Phaser.Class(
     	Sprite.call( this, scene, 0, 0, 'bullets.default' );
 
         this.lifespan = 2000;
-        this.damage = 25;
+        this.damage   = 25;
     },
 
     reset : function()

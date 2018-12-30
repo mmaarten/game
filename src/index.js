@@ -1,9 +1,8 @@
 
 var App = 
 {
-	Weapons : require( './Weapons' ),
-	Agents  : require( './Agents' ),
-	Scenes  : require( './Scenes' ),
+	Scenes      : require( './scenes' ),
+	GameObjects : require( './gameobjects' ),
 };
 
 module.exports = App;

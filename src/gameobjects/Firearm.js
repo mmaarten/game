@@ -1,6 +1,5 @@
 
-var Weapon  = require( './../Weapon' );
-var Bullets = require( './Bullets' );
+var Weapon = require( './Weapon' );
 
 var Firearm = new Phaser.Class(
 {

@@ -6,7 +6,7 @@ class EventManager
 		this.listeners = {};
 	}
 
-	addEventListener( type, callback, context )
+	on( type, callback, context )
 	{
 		if ( this.listeners[ type ] === undefined ) 
 		{
@@ -16,13 +16,13 @@ class EventManager
 		var listener = 
 		{
 			callback : callback,
-			context  : context,
+			context  : context
 		};
 
 		this.listeners[ type ].push( listener );
 	}
 
-	dispatchEvent( type, args )
+	trigger( type, args )
 	{
 		if ( this.listeners[ type ] === undefined ) 
 		{

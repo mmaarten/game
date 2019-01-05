@@ -12,6 +12,7 @@ class Sprite
 		this.velocity = new Geom.Vector2( 0, 0 );
 		this.width    = 24;
 		this.height   = 24;
+		this.speed    = 0;
 
 		this.sheet = this.scene.spriteSheets.get( this.texture );
 
@@ -25,21 +26,41 @@ class Sprite
 	setPosition( x, y )
 	{
 		this.position.set( x, y );
+
+		return this;
 	}
 
 	setVelocity( x, y )
 	{
 		this.velocity.set( x, y );
+
+		this.speed = Math.sqrt( x * x + y * y );
+
+		return this;
 	}
 
-	setVelocityX( x )
+	setVelocityX( value )
 	{
-		this.velocity.setX( x );
+		this.velocity.x = value;
+
+        var vx = value;
+        var vy = this.velocity.y;
+
+        this.speed = Math.sqrt( vx * vx + vy * vy );
+
+        return this;
 	}
 
-	setVelocityY( y )
+	setVelocityY( value )
 	{
-		this.velocity.setY( y );
+		this.velocity.y = value;
+
+        var vx = this.velocity.x;
+        var vy = value;
+
+        this.speed = Math.sqrt( vx * vx + vy * vy );
+
+        return this;
 	}
 
 	update( time, delta )
@@ -63,7 +84,8 @@ class Sprite
 
 		context.save();
 		context.translate( this.position.x, this.position.y );
-		context.drawImage( this.sheet.img, frame.x, frame.y, frame.width, frame.height, -this.width / 2, -this.height / 2, this.width, this.height );
+		//context.drawImage( this.sheet.img, frame.x, frame.y, frame.width, frame.height, -this.width / 2, -this.height / 2, this.width, this.height );
+		context.drawImage( this.sheet.img, frame.x, frame.y, frame.width, frame.height, 0, 0, this.width, this.height );
 		context.restore();
 
 		// Debug
@@ -84,7 +106,8 @@ class Sprite
 			context.save();
 			context.translate( this.position.x, this.position.y );
 			context.strokeStyle = 'purple';
-			context.strokeRect( - this.width / 2, - this.height / 2, this.width, this.height );
+			//context.strokeRect( - this.width / 2, - this.height / 2, this.width, this.height );
+			context.strokeRect( 0, 0, this.width, this.height );
 			context.restore();
 		}
 	}

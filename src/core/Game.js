@@ -9,7 +9,7 @@ class Game
 	{
 		var defaults = 
 		{
-			parent : 'body',
+			parent : '',
 			width  : 800,
 			height : 600,
 			fps    : 30,
@@ -48,7 +48,7 @@ class Game
 	{
 		var _this = this;
 
-		var parent = document.querySelector( this.parent );
+		var parent = document.getElementById( this.parent ) || document.body;
 		parent.appendChild( this.canvas );
 
 		this.updateInterval = setInterval( function()
@@ -62,6 +62,8 @@ class Game
 
 	update()
 	{
+		// Set update time
+
 		var now = new Date().getTime();
 		var prevTimeElapsed = this.timeElapsed;
 
@@ -73,15 +75,14 @@ class Game
 		this.timeElapsed = now - this.time;
 		this.timeDelta   = this.timeElapsed - prevTimeElapsed;
 
-		//
-
+		// Clear canvas
 		var context = this.canvas.getContext( '2d' );
-
 		context.clearRect( 0, 0, this.canvas.width, this.canvas.height );
 
-		//
-
+		// Update
 		this.events.trigger( 'update', [ this.timeElapsed, this.timeDelta ] );
+		
+		// Render
 		this.events.trigger( 'render' );
 	}
 }

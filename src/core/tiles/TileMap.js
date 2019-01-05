@@ -23,7 +23,7 @@ class TileMap
 		this.tileProperties = config.tileProperties;
 		this.tileSheet      = this.scene.spriteSheets.get( tileSheet );
 		this.tileWidth      = this.tileSheet.frameWidth;
-		this.tileheight     = this.tileSheet.frameHeight;
+		this.tileHeight     = this.tileSheet.frameHeight;
 		this.tiles          = {};
 
 		for ( var index = 0; index < this.tileData.length; index++ )
@@ -46,7 +46,7 @@ class TileMap
 
 	addTile( index, frame )
 	{
-		var location = this.getTileLocation( index );
+		var location   = this.getTileLocation( index );
 		var properties = this.tileProperties[ frame ] || {};
 
 		var tile = new Tile( this, 
@@ -55,8 +55,9 @@ class TileMap
 			location.x, 
 			location.y, 
 			this.tileWidth, 
-			this.tileheight );
+			this.tileHeight );
 
+		// TODO
 		tile.collide = properties.collide !== undefined ? properties.collide : false;
 
 		this.tiles[ tile.index ] = tile;
@@ -67,7 +68,7 @@ class TileMap
 		if ( translate ) 
 		{
 			x = Math.floor( x / this.tileWidth );
-			y = Math.floor( y / this.tileheight );
+			y = Math.floor( y / this.tileHeight );
 		}
 
 		if ( x < 0 || x >= this.width || y < 0 || y >= this.height ) 
@@ -84,6 +85,35 @@ class TileMap
 		var y = ( index - x ) / this.width;
 
 		return new Geom.Vector2( x, y );
+	}
+
+	getTilesIntersectRect( rect, collide )
+	{
+		var xStart   = Math.floor( rect.left / this.tileWidth );
+		var xEnd     = Math.floor( rect.right / this.tileWidth );
+
+		var yStart   = Math.floor( rect.top / this.tileHeight );
+		var yEnd     = Math.floor( rect.bottom / this.tileHeight );
+
+		var tiles = [];
+
+		for ( var y = yStart; y <= yEnd; y++ )
+		{
+			for ( var x = xStart; x <= xEnd; x++ )
+			{
+				var tile = this.getTileAt( x, y );
+
+				if ( tile && collide !== undefined ) 
+				{
+					if ( ( collide && tile.collide ) || ( ! collide && ! tile.collide ) ) 
+					{
+						tiles.push( tile );
+					}
+				}
+			}
+		}
+
+		return tiles;
 	}
 
 	getTileNeighbors( index, diagonal )
@@ -195,7 +225,7 @@ class TileMap
 			}
 		}
 
-		//
+		// Translate
 
 		if ( translate ) 
 		{
@@ -214,7 +244,9 @@ class TileMap
 			var index = path[ i ];
 			var tile  = this.getTile( index );
 
-			var position = new Geom.Vector2( tile.xPixels + tile.width / 2, tile.yPixels + tile.height / 2 );
+			var position = new Geom.Vector2();
+			position.setX( tile.xPixels + tile.width / 2 );
+			position.setY( tile.yPixels + tile.height / 2 );
 
 			translation.push( position );
 		}

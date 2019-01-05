@@ -1,6 +1,7 @@
 
 module.exports = 
 {
-	Distance : require( './distance' ),
-	Vector2  : require( './Vector2' ),
+	Distance  : require( './distance' ),
+	Rectangle : require( './Rectangle' ),
+	Vector2   : require( './Vector2' ),
 };

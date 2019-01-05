@@ -40,32 +40,30 @@ class Agent extends Core.Sprites.Sprite
 	{
 		this.lookDir.set( dirX, dirY );
 
-		/*
 		if ( Math.round( this.lookDir.x ) < 0 ) 
 		{
-			this.anims.play( 'left', this.isMoving() );
+			// this.anims.play( 'left' );
 		}
 
 		else if ( Math.round( this.lookDir.x ) > 0 ) 
 		{
-			this.anims.play( 'right', this.isMoving() );
+			// this.anims.play( 'right' );
 		}
 
 		else if ( Math.round( this.lookDir.y ) < 0 ) 
 		{
-			this.anims.play( 'up', this.isMoving() );
+			// this.anims.play( 'up' );
 		}
 
 		else if ( Math.round( this.lookDir.y ) > 0 ) 
 		{
-			this.anims.play( 'down', this.isMoving() );
+			// this.anims.play( 'down' );
 		}
 
 		else
 		{
-			this.anims.play( 'down', this.isMoving() );
+			// this.anims.play( 'down' );
 		}
-		*/
 	}
 
 	lookAt( x, y )
